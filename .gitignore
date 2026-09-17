@@ -1,0 +1,16 @@
+# env (never commit secrets)
+.env
+.env.local
+.deploy.env
+
+# build output
+/bin/
+/dist/
+
+# editor
+.idea/
+.vscode/
+
+# macOS metadata
+.DS_Store
+**/.DS_Store

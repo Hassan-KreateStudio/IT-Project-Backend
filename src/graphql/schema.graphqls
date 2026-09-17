@@ -1,0 +1,107 @@
+scalar Time
+
+enum Role {
+  PATIENT
+  CAREGIVER
+}
+
+enum ActivityIntensity {
+  LIGHT
+  MODERATE
+  VIGOROUS
+}
+
+type User {
+  id: ID!
+  email: String!
+  displayName: String!
+  role: Role!
+  createdAt: Time!
+}
+
+type AuthPayload {
+  token: String!
+  user: User!
+}
+
+type ActivityRecord {
+  id: ID!
+  sourceId: String!
+  recordedAt: Time!
+  stepCount: Int!
+  heartRate: Int
+  durationMinutes: Int!
+  intensity: ActivityIntensity!
+  sedentaryMinutes: Int!
+}
+
+input ActivityRecordInput {
+  sourceId: String!
+  recordedAt: Time!
+  stepCount: Int!
+  heartRate: Int
+  durationMinutes: Int!
+  intensity: ActivityIntensity!
+  sedentaryMinutes: Int!
+}
+
+type GlucoseReading {
+  id: ID!
+  value: Float!
+  recordedAt: Time!
+}
+
+type ActivityTrend {
+  date: String!
+  stepCount: Int!
+  durationMinutes: Int!
+  sedentaryMinutes: Int!
+  averageHeartRate: Float
+}
+
+type GlucoseTrend {
+  date: String!
+  averageValue: Float!
+  readingCount: Int!
+}
+
+type Alert {
+  code: String!
+  message: String!
+  severity: String!
+}
+
+type DashboardSummary {
+  totalSteps: Int!
+  averageHeartRate: Float
+  totalActiveMinutes: Int!
+  totalSedentaryMinutes: Int!
+  averageGlucose: Float
+  glucoseReadingCount: Int!
+}
+
+type Dashboard {
+  patient: User!
+  from: Time!
+  to: Time!
+  activityTrends: [ActivityTrend!]!
+  glucoseTrends: [GlucoseTrend!]!
+  alerts: [Alert!]!
+  summary: DashboardSummary!
+}
+
+type Query {
+  health: String!
+  me: User!
+  monitoredPatients: [User!]!
+  dashboard(from: Time, to: Time): Dashboard!
+  patientDashboard(patientId: ID!, from: Time, to: Time): Dashboard!
+}
+
+type Mutation {
+  register(email: String!, password: String!, displayName: String!, role: Role!): AuthPayload!
+  login(email: String!, password: String!): AuthPayload!
+  linkCaregiver(caregiverEmail: String!): User!
+  syncActivity(records: [ActivityRecordInput!]!): [ActivityRecord!]!
+  addGlucose(value: Float!, recordedAt: Time!): GlucoseReading!
+}

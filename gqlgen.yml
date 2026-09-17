@@ -1,0 +1,24 @@
+schema:
+  - src/graphql/*.graphqls
+
+exec:
+  filename: src/graphql/generated.go
+  package: graphql
+
+model:
+  filename: src/graphql/models_gen.go
+  package: graphql
+
+resolver:
+  layout: follow-schema
+  dir: src/graphql
+  package: graphql
+  filename_template: "{name}.resolvers.go"
+
+models:
+  ID:
+    model:
+      - github.com/99designs/gqlgen/graphql.ID
+  Time:
+    model:
+      - github.com/99designs/gqlgen/graphql.Time

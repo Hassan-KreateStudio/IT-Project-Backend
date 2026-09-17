@@ -1,0 +1,10 @@
+.git
+.bin
+/bin
+/dist
+.env
+.env.local
+.deploy.env
+.DS_Store
+**/.DS_Store
+README.md
