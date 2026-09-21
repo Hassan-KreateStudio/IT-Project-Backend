@@ -52,7 +52,7 @@ render-create:
 		--confirm -o json
 	@echo ""
 	@echo "Next: Render dashboard → it-project-backend → Environment"
-	@echo "Add JWT_SECRET, NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, NEO4J_DATABASE=neo4j"
+	@echo "Add JWT_SECRET, NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, NEO4J_DATABASE=neo4j, REDIS_URL"
 	@echo "Copy the service id into .deploy.env as RENDER_SERVICE_ID, then make render-deploy."
 
 render-deploy:

@@ -24,6 +24,7 @@ import (
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/config"
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/middleware"
 	neo4jdb "github.com/Hassan-KreateStudio/IT-Project-Backend/src/platform/neo4j"
+	redisdb "github.com/Hassan-KreateStudio/IT-Project-Backend/src/platform/redis"
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/routes"
 
 	"github.com/go-chi/chi/v5"
@@ -45,6 +46,17 @@ func main() {
 		log.Fatalf("neo4j connect: %v", err)
 	}
 	defer client.Close(context.Background())
+
+	cache, err := redisdb.Connect(context.Background(), cfg.RedisURL)
+	if err != nil {
+		log.Fatalf("redis connect: %v", err)
+	}
+	if cache != nil {
+		defer cache.Close()
+		log.Printf("redis auth cache enabled")
+	} else {
+		log.Printf("redis auth cache disabled (REDIS_URL empty)")
+	}
 
 	if err := neo4jdb.Migrate(context.Background(), client, cfg.MigrationsDir); err != nil {
 		log.Fatalf("neo4j migrate: %v", err)
@@ -72,7 +84,7 @@ func main() {
 
 	app := chi.NewRouter()
 	middleware.Apply(app)
-	routes.Register(app, client, resolver, auth)
+	routes.Register(app, client, resolver, auth, cache)
 
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,

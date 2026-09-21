@@ -13,9 +13,10 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/go-chi/chi/v5"
+	"github.com/redis/go-redis/v9"
 )
 
-func Register(app *chi.Mux, client *neo4jdb.Client, resolver *gql.Resolver, auth *authservices.Service) {
+func Register(app *chi.Mux, client *neo4jdb.Client, resolver *gql.Resolver, auth *authservices.Service, cache *redis.Client) {
 	app.Route("/ping", ping.Register)
 	app.Route("/db", func(r chi.Router) {
 		db.Register(r, client)
@@ -24,5 +25,5 @@ func Register(app *chi.Mux, client *neo4jdb.Client, resolver *gql.Resolver, auth
 	server := handler.NewDefaultServer(gql.NewExecutableSchema(gql.Config{Resolvers: resolver}))
 
 	app.Get("/graphql", playground.Handler("GraphQL playground", "/graphql"))
-	app.With(middleware.OptionalAuth(auth)).Method(http.MethodPost, "/graphql", server)
+	app.With(middleware.OptionalAuth(auth, cache)).Method(http.MethodPost, "/graphql", server)
 }

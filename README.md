@@ -7,6 +7,7 @@ Go GraphQL API for graph-based analysis of Apple Watch physical activity data an
 - Language: Go
 - API: GraphQL (`gqlgen`) over chi
 - Database: Neo4j (Aura in prod, Docker locally)
+- Auth cache: Redis (5 minute token → user cache)
 - Analysis: computed on query (not stored)
 - Deploy: Docker Hub → Render
 
@@ -14,7 +15,7 @@ Go GraphQL API for graph-based analysis of Apple Watch physical activity data an
 
 | File | Git | Used for |
 |---|---|---|
-| `.env` | ignored | Local API + Compose Neo4j credentials |
+| `.env` | ignored | Local API + Compose Neo4j/Redis credentials |
 | `.deploy.env` | ignored | Docker Hub + Render service id |
 | `.env.example` / `.deploy.env.example` | committed | Templates for a new machine |
 
@@ -57,4 +58,4 @@ make render-create
 make render-deploy
 ```
 
-On Render, set a **different** `JWT_SECRET` plus Aura `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `NEO4J_DATABASE=neo4j`. Health check: `/ping`.
+On Render, set a **different** `JWT_SECRET` plus Aura `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `NEO4J_DATABASE=neo4j`, and `REDIS_URL`. Health check: `/ping`.

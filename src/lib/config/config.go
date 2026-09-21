@@ -6,13 +6,14 @@ import (
 )
 
 type Config struct {
-	Port           string
-	JWTSecret      string
-	Neo4jURI       string
-	Neo4jUser      string
-	Neo4jPassword  string
-	Neo4jDatabase  string
-	MigrationsDir  string
+	Port          string
+	JWTSecret     string
+	Neo4jURI      string
+	Neo4jUser     string
+	Neo4jPassword string
+	Neo4jDatabase string
+	RedisURL      string
+	MigrationsDir string
 }
 
 func Load() Config {
@@ -40,6 +41,7 @@ func Load() Config {
 		Neo4jUser:     envOr("NEO4J_USER", "neo4j"),
 		Neo4jPassword: os.Getenv("NEO4J_PASSWORD"),
 		Neo4jDatabase: database,
+		RedisURL:      strings.TrimSpace(os.Getenv("REDIS_URL")),
 		MigrationsDir: migrationsDir,
 	}
 }
