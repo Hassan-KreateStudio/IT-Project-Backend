@@ -36,6 +36,7 @@ Domain proofs live next to the domain (Terminal, not Playground):
 python3 src/domains/auth/tests/run.py
 python3 src/domains/caregiver/tests/run.py
 python3 src/domains/activity/tests/run.py
+python3 src/domains/glucose/tests/run.py
 ```
 
 `make run` uses the same `.env` and talks to Neo4j on `bolt://localhost:7687`.
