@@ -30,6 +30,14 @@ curl http://localhost:8080/ping
 
 GraphQL playground: `http://localhost:8080/graphql`
 
+Domain proofs live next to the domain (Terminal, not Playground):
+
+```sh
+python3 src/domains/auth/tests/run.py
+python3 src/domains/caregiver/tests/run.py
+python3 src/domains/activity/tests/run.py
+```
+
 `make run` uses the same `.env` and talks to Neo4j on `bolt://localhost:7687`.
 
 ## GraphQL
