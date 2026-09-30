@@ -3,14 +3,22 @@ package mailer
 import (
 	"bytes"
 	"context"
+	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 )
+
+//go:embed logo.png
+var logoPNG []byte
+
+const productName = "Health Mate"
 
 type Mailer interface {
 	SendCode(ctx context.Context, to, code string) error
@@ -38,8 +46,17 @@ func (m ResendMailer) SendCode(ctx context.Context, to, code string) error {
 	body, err := json.Marshal(map[string]any{
 		"from":    from,
 		"to":      []string{to},
-		"subject": "Your sign-in code",
-		"text":    fmt.Sprintf("Your code is %s. It expires in 10 minutes.", code),
+		"subject": productName + " verification code",
+		"text":    plainCodeEmail(code),
+		"html":    htmlCodeEmail(code),
+		"attachments": []map[string]any{
+			{
+				"filename":     "logo.png",
+				"content_type": "image/png",
+				"content":      base64.StdEncoding.EncodeToString(logoPNG),
+				"content_id":   "logo",
+			},
+		},
 	})
 	if err != nil {
 		return err
@@ -67,4 +84,39 @@ func (m ResendMailer) SendCode(ctx context.Context, to, code string) error {
 		return fmt.Errorf("resend %d: %s", res.StatusCode, strings.TrimSpace(string(raw)))
 	}
 	return nil
+}
+
+func plainCodeEmail(code string) string {
+	return strings.Join([]string{
+		productName + " verification code",
+		"",
+		"Your " + productName + " verification code is below.",
+		"",
+		code,
+		"",
+		"This code expires in 10 minutes.",
+		"",
+		"If you did not request this code, you can ignore this email.",
+	}, "\n")
+}
+
+func htmlCodeEmail(code string) string {
+	safe := html.EscapeString(code)
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#ffffff;">
+  <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="background:#ffffff;">
+    <tr>
+      <td style="padding:32px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#0A0A0A;">
+        <img src="cid:logo" width="48" height="48" alt="%[1]s" style="display:block;border:0;border-radius:10px;"/>
+        <h1 style="margin:28px 0 12px;font-size:22px;font-weight:700;line-height:1.3;">%[1]s verification code</h1>
+        <p style="margin:0 0 24px;font-size:16px;line-height:1.5;color:#3A3A3A;">Your %[1]s verification code is below.</p>
+        <p style="margin:0 0 24px;font-size:36px;font-weight:700;letter-spacing:0.12em;line-height:1.2;">%[2]s</p>
+        <p style="margin:0 0 16px;font-size:16px;line-height:1.5;color:#3A3A3A;">This code expires in 10 minutes.</p>
+        <p style="margin:0;font-size:14px;line-height:1.5;color:#6B6B6B;">If you did not request this code, you can ignore this email.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`, productName, safe)
 }
