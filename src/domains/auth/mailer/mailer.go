@@ -18,7 +18,7 @@ import (
 //go:embed logo.png
 var logoPNG []byte
 
-const productName = "Health Mate"
+const productName = "Graph Health"
 
 type Mailer interface {
 	SendCode(ctx context.Context, to, code string) error
