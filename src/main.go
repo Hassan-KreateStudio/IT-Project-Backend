@@ -13,6 +13,7 @@ import (
 	activityrepo "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/activity/repository"
 	activitysvc "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/activity/services"
 	analysissvc "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/analysis/services"
+	authmailer "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/auth/mailer"
 	authrepo "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/auth/repository"
 	authservices "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/auth/services"
 	caregiverrepo "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/caregiver/repository"
@@ -67,7 +68,17 @@ func main() {
 	}
 
 	users := authrepo.New(client)
-	auth := authservices.New(users, cfg.JWTSecret)
+	var codeMailer authmailer.Mailer = authmailer.LogMailer{}
+	if cfg.ResendAPIKey != "" {
+		codeMailer = authmailer.ResendMailer{APIKey: cfg.ResendAPIKey, From: cfg.MailFrom}
+		log.Printf("auth email via Resend")
+	} else {
+		log.Printf("auth email logging only (RESEND_API_KEY empty)")
+	}
+	if cfg.AuthDebugCodes {
+		log.Printf("AUTH_DEBUG_CODES enabled — codes may appear in GraphQL")
+	}
+	auth := authservices.New(users, cache, cfg.JWTSecret, codeMailer, cfg.AuthDebugCodes)
 	patients := patientsvc.New(users)
 	caregiver := caregiversvc.New(caregiverrepo.New(client))
 	activity := activitysvc.New(activityrepo.New(client))

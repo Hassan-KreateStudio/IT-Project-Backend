@@ -72,6 +72,11 @@ type ComplexityRoot struct {
 		Severity func(childComplexity int) int
 	}
 
+	AuthCodePayload struct {
+		DebugCode func(childComplexity int) int
+		Sent      func(childComplexity int) int
+	}
+
 	AuthPayload struct {
 		Token func(childComplexity int) int
 		User  func(childComplexity int) int
@@ -109,11 +114,11 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddGlucose    func(childComplexity int, value float64, recordedAt time.Time) int
-		LinkCaregiver func(childComplexity int, caregiverEmail string) int
-		Login         func(childComplexity int, email string, password string) int
-		Register      func(childComplexity int, email string, password string, displayName string, role Role) int
-		SyncActivity  func(childComplexity int, records []*ActivityRecordInput) int
+		AddGlucose      func(childComplexity int, value float64, recordedAt time.Time) int
+		LinkCaregiver   func(childComplexity int, caregiverEmail string) int
+		RequestAuthCode func(childComplexity int, email string, role Role, displayName *string) int
+		SyncActivity    func(childComplexity int, records []*ActivityRecordInput) int
+		VerifyAuthCode  func(childComplexity int, email string, code string) int
 	}
 
 	Query struct {
@@ -134,8 +139,8 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
-	Register(ctx context.Context, email string, password string, displayName string, role Role) (*AuthPayload, error)
-	Login(ctx context.Context, email string, password string) (*AuthPayload, error)
+	RequestAuthCode(ctx context.Context, email string, role Role, displayName *string) (*AuthCodePayload, error)
+	VerifyAuthCode(ctx context.Context, email string, code string) (*AuthPayload, error)
 	LinkCaregiver(ctx context.Context, caregiverEmail string) (*User, error)
 	SyncActivity(ctx context.Context, records []*ActivityRecordInput) ([]*ActivityRecord, error)
 	AddGlucose(ctx context.Context, value float64, recordedAt time.Time) (*GlucoseReading, error)
@@ -265,6 +270,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Alert.Severity(childComplexity), true
+
+	case "AuthCodePayload.debugCode":
+		if e.complexity.AuthCodePayload.DebugCode == nil {
+			break
+		}
+
+		return e.complexity.AuthCodePayload.DebugCode(childComplexity), true
+	case "AuthCodePayload.sent":
+		if e.complexity.AuthCodePayload.Sent == nil {
+			break
+		}
+
+		return e.complexity.AuthCodePayload.Sent(childComplexity), true
 
 	case "AuthPayload.token":
 		if e.complexity.AuthPayload.Token == nil {
@@ -419,28 +437,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.LinkCaregiver(childComplexity, args["caregiverEmail"].(string)), true
-	case "Mutation.login":
-		if e.complexity.Mutation.Login == nil {
+	case "Mutation.requestAuthCode":
+		if e.complexity.Mutation.RequestAuthCode == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_login_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_requestAuthCode_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.Login(childComplexity, args["email"].(string), args["password"].(string)), true
-	case "Mutation.register":
-		if e.complexity.Mutation.Register == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_register_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.Register(childComplexity, args["email"].(string), args["password"].(string), args["displayName"].(string), args["role"].(Role)), true
+		return e.complexity.Mutation.RequestAuthCode(childComplexity, args["email"].(string), args["role"].(Role), args["displayName"].(*string)), true
 	case "Mutation.syncActivity":
 		if e.complexity.Mutation.SyncActivity == nil {
 			break
@@ -452,6 +459,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.SyncActivity(childComplexity, args["records"].([]*ActivityRecordInput)), true
+	case "Mutation.verifyAuthCode":
+		if e.complexity.Mutation.VerifyAuthCode == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_verifyAuthCode_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.VerifyAuthCode(childComplexity, args["email"].(string), args["code"].(string)), true
 
 	case "Query.dashboard":
 		if e.complexity.Query.Dashboard == nil {
@@ -677,7 +695,7 @@ func (ec *executionContext) field_Mutation_linkCaregiver_args(ctx context.Contex
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_requestAuthCode_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "email", ec.unmarshalNString2string)
@@ -685,37 +703,16 @@ func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawAr
 		return nil, err
 	}
 	args["email"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "password", ec.unmarshalNString2string)
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "role", ec.unmarshalNRole2githubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐRole)
 	if err != nil {
 		return nil, err
 	}
-	args["password"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_register_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "email", ec.unmarshalNString2string)
-	if err != nil {
-		return nil, err
-	}
-	args["email"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "password", ec.unmarshalNString2string)
-	if err != nil {
-		return nil, err
-	}
-	args["password"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "displayName", ec.unmarshalNString2string)
+	args["role"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "displayName", ec.unmarshalOString2ᚖstring)
 	if err != nil {
 		return nil, err
 	}
 	args["displayName"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "role", ec.unmarshalNRole2githubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐRole)
-	if err != nil {
-		return nil, err
-	}
-	args["role"] = arg3
 	return args, nil
 }
 
@@ -727,6 +724,22 @@ func (ec *executionContext) field_Mutation_syncActivity_args(ctx context.Context
 		return nil, err
 	}
 	args["records"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_verifyAuthCode_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "email", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["email"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "code", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["code"] = arg1
 	return args, nil
 }
 
@@ -1284,6 +1297,64 @@ func (ec *executionContext) _Alert_severity(ctx context.Context, field graphql.C
 func (ec *executionContext) fieldContext_Alert_severity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Alert",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthCodePayload_sent(ctx context.Context, field graphql.CollectedField, obj *AuthCodePayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthCodePayload_sent,
+		func(ctx context.Context) (any, error) {
+			return obj.Sent, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthCodePayload_sent(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthCodePayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthCodePayload_debugCode(ctx context.Context, field graphql.CollectedField, obj *AuthCodePayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthCodePayload_debugCode,
+		func(ctx context.Context) (any, error) {
+			return obj.DebugCode, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthCodePayload_debugCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthCodePayload",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -1969,24 +2040,24 @@ func (ec *executionContext) fieldContext_GlucoseTrend_readingCount(_ context.Con
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_register(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_requestAuthCode(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_register,
+		ec.fieldContext_Mutation_requestAuthCode,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().Register(ctx, fc.Args["email"].(string), fc.Args["password"].(string), fc.Args["displayName"].(string), fc.Args["role"].(Role))
+			return ec.resolvers.Mutation().RequestAuthCode(ctx, fc.Args["email"].(string), fc.Args["role"].(Role), fc.Args["displayName"].(*string))
 		},
 		nil,
-		ec.marshalNAuthPayload2ᚖgithubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐAuthPayload,
+		ec.marshalNAuthCodePayload2ᚖgithubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐAuthCodePayload,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_register(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_requestAuthCode(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -1994,12 +2065,12 @@ func (ec *executionContext) fieldContext_Mutation_register(ctx context.Context, 
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "token":
-				return ec.fieldContext_AuthPayload_token(ctx, field)
-			case "user":
-				return ec.fieldContext_AuthPayload_user(ctx, field)
+			case "sent":
+				return ec.fieldContext_AuthCodePayload_sent(ctx, field)
+			case "debugCode":
+				return ec.fieldContext_AuthCodePayload_debugCode(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type AuthPayload", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type AuthCodePayload", field.Name)
 		},
 	}
 	defer func() {
@@ -2009,22 +2080,22 @@ func (ec *executionContext) fieldContext_Mutation_register(ctx context.Context, 
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_register_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_requestAuthCode_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_login(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_verifyAuthCode(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_login,
+		ec.fieldContext_Mutation_verifyAuthCode,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().Login(ctx, fc.Args["email"].(string), fc.Args["password"].(string))
+			return ec.resolvers.Mutation().VerifyAuthCode(ctx, fc.Args["email"].(string), fc.Args["code"].(string))
 		},
 		nil,
 		ec.marshalNAuthPayload2ᚖgithubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐAuthPayload,
@@ -2033,7 +2104,7 @@ func (ec *executionContext) _Mutation_login(ctx context.Context, field graphql.C
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_login(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_verifyAuthCode(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -2056,7 +2127,7 @@ func (ec *executionContext) fieldContext_Mutation_login(ctx context.Context, fie
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_login_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_verifyAuthCode_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4401,6 +4472,47 @@ func (ec *executionContext) _Alert(ctx context.Context, sel ast.SelectionSet, ob
 	return out
 }
 
+var authCodePayloadImplementors = []string{"AuthCodePayload"}
+
+func (ec *executionContext) _AuthCodePayload(ctx context.Context, sel ast.SelectionSet, obj *AuthCodePayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, authCodePayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AuthCodePayload")
+		case "sent":
+			out.Values[i] = ec._AuthCodePayload_sent(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "debugCode":
+			out.Values[i] = ec._AuthCodePayload_debugCode(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var authPayloadImplementors = []string{"AuthPayload"}
 
 func (ec *executionContext) _AuthPayload(ctx context.Context, sel ast.SelectionSet, obj *AuthPayload) graphql.Marshaler {
@@ -4689,16 +4801,16 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
-		case "register":
+		case "requestAuthCode":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_register(ctx, field)
+				return ec._Mutation_requestAuthCode(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "login":
+		case "verifyAuthCode":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_login(ctx, field)
+				return ec._Mutation_verifyAuthCode(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -5491,6 +5603,20 @@ func (ec *executionContext) marshalNAlert2ᚖgithubᚗcomᚋHassanᚑKreateStudi
 		return graphql.Null
 	}
 	return ec._Alert(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAuthCodePayload2githubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐAuthCodePayload(ctx context.Context, sel ast.SelectionSet, v AuthCodePayload) graphql.Marshaler {
+	return ec._AuthCodePayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAuthCodePayload2ᚖgithubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐAuthCodePayload(ctx context.Context, sel ast.SelectionSet, v *AuthCodePayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AuthCodePayload(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNAuthPayload2githubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐAuthPayload(ctx context.Context, sel ast.SelectionSet, v AuthPayload) graphql.Marshaler {

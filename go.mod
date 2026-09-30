@@ -10,7 +10,6 @@ require (
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.2
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/vektah/gqlparser/v2 v2.5.30
-	golang.org/x/crypto v0.42.0
 )
 
 require (

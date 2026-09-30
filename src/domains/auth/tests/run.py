@@ -5,11 +5,11 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 import urllib.error
 import urllib.request
 
 URL = "http://localhost:8080/graphql"
-PASSWORD = "password123"
 PATIENT_EMAIL = "patient@example.com"
 CAREGIVER_EMAIL = "caregiver@example.com"
 
@@ -50,45 +50,46 @@ def check(results, name, ok, detail):
     print(("PASS" if ok else "FAIL"), "-", name, "-", detail)
 
 
-def login(email):
+def request_code(email, role, display_name=None):
     _, _, data = gql(
         """
-        mutation($email: String!, $password: String!) {
-          login(email: $email, password: $password) { token }
+        mutation($email: String!, $role: Role!, $displayName: String) {
+          requestAuthCode(email: $email, role: $role, displayName: $displayName) {
+            sent
+            debugCode
+          }
         }
         """,
-        variables={"email": email, "password": PASSWORD},
+        variables={"email": email, "role": role, "displayName": display_name},
     )
-    token = ((data.get("data") or {}).get("login") or {}).get("token")
-    if not token:
-        raise RuntimeError(f"login failed for {email}: {data}")
-    return token
+    return data
 
 
-def register(email, role, display_name):
+def verify_code(email, code):
     _, _, data = gql(
-        f"""
-        mutation {{
-          register(
-            email: "{email}"
-            password: "{PASSWORD}"
-            displayName: "{display_name}"
-            role: {role}
-          ) {{ token }}
-        }}
         """
+        mutation($email: String!, $code: String!) {
+          verifyAuthCode(email: $email, code: $code) {
+            token
+            user { email role }
+          }
+        }
+        """,
+        variables={"email": email, "code": code},
     )
     return data
 
 
 def ensure_user(email, role, display_name):
-    data = register(email, role, display_name)
-    token = ((data.get("data") or {}).get("register") or {}).get("token")
-    if token:
-        return token
-    if "duplicate_email" in codes(data):
-        return login(email)
-    raise RuntimeError(f"could not ensure {email}: {data}")
+    data = request_code(email, role, display_name)
+    code = ((data.get("data") or {}).get("requestAuthCode") or {}).get("debugCode")
+    if not code:
+        raise RuntimeError(f"no debugCode for {email} (is AUTH_DEBUG_CODES=1?): {data}")
+    data = verify_code(email, code)
+    token = ((data.get("data") or {}).get("verifyAuthCode") or {}).get("token")
+    if not token:
+        raise RuntimeError(f"could not sign in {email}: {data}")
+    return token
 
 
 def main():
@@ -96,24 +97,23 @@ def main():
     ensure_user(PATIENT_EMAIL, "PATIENT", "Test Patient")
     ensure_user(CAREGIVER_EMAIL, "CAREGIVER", "Test Caregiver")
 
-    status, _, data = gql(
-        """
-        mutation {
-          login(email: "patient@example.com", password: "password123") {
-            token
-            user { email role }
-          }
-        }
-        """
-    )
-    user = ((data.get("data") or {}).get("login") or {}).get("user") or {}
+    data = request_code(PATIENT_EMAIL, "PATIENT")
+    payload = (data.get("data") or {}).get("requestAuthCode") or {}
     check(
         results,
-        "login patient",
-        status == 200 and user.get("email") == PATIENT_EMAIL and user.get("role") == "PATIENT",
+        "request patient code",
+        payload.get("sent") is True and bool(payload.get("debugCode")),
+        payload or codes(data),
+    )
+    data = verify_code(PATIENT_EMAIL, payload.get("debugCode") or "")
+    user = ((data.get("data") or {}).get("verifyAuthCode") or {}).get("user") or {}
+    check(
+        results,
+        "verify patient code",
+        user.get("email") == PATIENT_EMAIL and user.get("role") == "PATIENT",
         user or codes(data),
     )
-    patient_token = ((data.get("data") or {}).get("login") or {}).get("token")
+    patient_token = ((data.get("data") or {}).get("verifyAuthCode") or {}).get("token")
 
     status, headers, data = gql("{ me { email role } }", token=patient_token)
     me = (data.get("data") or {}).get("me") or {}
@@ -134,43 +134,51 @@ def main():
         f"first={first_cache} second={second_cache}",
     )
 
-    data = register(CAREGIVER_EMAIL, "CAREGIVER", "Test Caregiver")
-    check(results, "duplicate caregiver email", "duplicate_email" in codes(data), codes(data))
+    data = request_code(CAREGIVER_EMAIL, "CAREGIVER")
+    payload = (data.get("data") or {}).get("requestAuthCode") or {}
+    check(
+        results,
+        "existing caregiver can request another code",
+        payload.get("sent") is True and bool(payload.get("debugCode")),
+        payload or codes(data),
+    )
 
-    caregiver_token = login(CAREGIVER_EMAIL)
-    _, _, data = gql("{ me { email role } }", token=caregiver_token)
+    caregiver_token = ((verify_code(CAREGIVER_EMAIL, payload.get("debugCode") or "")).get("data") or {}).get(
+        "verifyAuthCode"
+    ) or {}
+    _, _, data = gql("{ me { email role } }", token=caregiver_token.get("token"))
     me = (data.get("data") or {}).get("me") or {}
     check(
         results,
-        "login caregiver + me",
+        "verify caregiver + me",
         me.get("email") == CAREGIVER_EMAIL and me.get("role") == "CAREGIVER",
         me or codes(data),
     )
 
-    data = register(PATIENT_EMAIL, "PATIENT", "Test Patient")
-    check(results, "duplicate patient email", "duplicate_email" in codes(data), codes(data))
+    data = request_code(PATIENT_EMAIL, "CAREGIVER")
+    check(results, "role conflict on existing email", "role_conflict" in codes(data), codes(data))
+
+    nameless = f"nameless-{int(time.time())}@example.com"
+    data = request_code(nameless, "PATIENT")
+    check(results, "new user needs display name", "invalid_display_name" in codes(data), codes(data))
 
     _, _, data = gql(
         """
         mutation {
-          login(email: "patient@example.com", password: "wrong-password") { token }
+          verifyAuthCode(email: "patient@example.com", code: "000000") { token }
         }
         """
     )
-    check(results, "wrong password", "unauthorized" in codes(data), codes(data))
+    check(results, "wrong code", "invalid_code" in codes(data), codes(data))
 
     _, _, data = gql("{ me { email } }")
     check(results, "me with no token", "unauthorized" in codes(data), codes(data))
 
-    _, _, data = gql(
-        """
-        mutation {
-          login(email: "patient@example.com", password: "password123") { token }
-        }
-        """
-    )
-    token = ((data.get("data") or {}).get("login") or {}).get("token")
-    check(results, "login works with no header", bool(token), codes(data) or "token returned")
+    data = request_code(PATIENT_EMAIL, "PATIENT")
+    code = ((data.get("data") or {}).get("requestAuthCode") or {}).get("debugCode")
+    data = verify_code(PATIENT_EMAIL, code or "")
+    token = ((data.get("data") or {}).get("verifyAuthCode") or {}).get("token")
+    check(results, "verify works with no header", bool(token), codes(data) or "token returned")
 
     _, _, data = gql("{ health }")
     check(results, "health", (data.get("data") or {}).get("health") == "ok", data)

@@ -44,7 +44,9 @@ python3 src/domains/analysis/tests/run.py
 
 ## GraphQL
 
-Public: `register`, `login`, `health`.
+Public: `requestAuthCode`, `verifyAuthCode`, `health`.
+
+Local proofs need `AUTH_DEBUG_CODES=1` so `requestAuthCode` returns `debugCode`. Leave that off on Render. Leave `RESEND_API_KEY` empty until a verified from-address is ready.
 
 Authenticated (Bearer JWT):
 

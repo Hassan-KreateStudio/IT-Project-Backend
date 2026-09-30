@@ -19,7 +19,7 @@ From the repo root:
 python3 src/domains/glucose/tests/run.py
 ```
 
-Accounts (created on first run, password `password123`):
+Accounts (created on first run via email code; no password):
 
 - `patient@example.com` — PATIENT who writes readings
 - `caregiver@example.com` — CAREGIVER who must be refused

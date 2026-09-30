@@ -19,7 +19,7 @@ From the repo root:
 python3 src/domains/analysis/tests/run.py
 ```
 
-Accounts (created on first run, password `password123`):
+Accounts (created on first run via email code; no password):
 
 - `patient@example.com` — PATIENT who owns the dashboard
 - `caregiver@example.com` — CAREGIVER linked to that patient

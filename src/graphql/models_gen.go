@@ -45,6 +45,11 @@ type Alert struct {
 	Severity string `json:"severity"`
 }
 
+type AuthCodePayload struct {
+	Sent      bool    `json:"sent"`
+	DebugCode *string `json:"debugCode,omitempty"`
+}
+
 type AuthPayload struct {
 	Token string `json:"token"`
 	User  *User  `json:"user"`

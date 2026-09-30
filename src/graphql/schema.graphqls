@@ -24,6 +24,11 @@ type AuthPayload {
   user: User!
 }
 
+type AuthCodePayload {
+  sent: Boolean!
+  debugCode: String
+}
+
 type ActivityRecord {
   id: ID!
   sourceId: String!
@@ -99,8 +104,8 @@ type Query {
 }
 
 type Mutation {
-  register(email: String!, password: String!, displayName: String!, role: Role!): AuthPayload!
-  login(email: String!, password: String!): AuthPayload!
+  requestAuthCode(email: String!, role: Role!, displayName: String): AuthCodePayload!
+  verifyAuthCode(email: String!, code: String!): AuthPayload!
   linkCaregiver(caregiverEmail: String!): User!
   syncActivity(records: [ActivityRecordInput!]!): [ActivityRecord!]!
   addGlucose(value: Float!, recordedAt: Time!): GlucoseReading!
