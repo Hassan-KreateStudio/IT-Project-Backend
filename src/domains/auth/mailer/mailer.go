@@ -22,12 +22,18 @@ const productName = "Graph Health"
 
 type Mailer interface {
 	SendCode(ctx context.Context, to, code string) error
+	SendLinked(ctx context.Context, to, patientName string) error
 }
 
 type LogMailer struct{}
 
 func (LogMailer) SendCode(_ context.Context, to, _ string) error {
 	log.Printf("auth code queued for %s (not emailed; set RESEND_API_KEY to send)", to)
+	return nil
+}
+
+func (LogMailer) SendLinked(_ context.Context, to, patientName string) error {
+	log.Printf("caregiver link email queued for %s (patient %q; not emailed; set RESEND_API_KEY to send)", to, patientName)
 	return nil
 }
 
@@ -38,6 +44,14 @@ type ResendMailer struct {
 }
 
 func (m ResendMailer) SendCode(ctx context.Context, to, code string) error {
+	return m.send(ctx, to, productName+" verification code", plainCodeEmail(code), htmlCodeEmail(code))
+}
+
+func (m ResendMailer) SendLinked(ctx context.Context, to, patientName string) error {
+	return m.send(ctx, to, productName+" — you've been added", plainLinkedEmail(patientName), htmlLinkedEmail(patientName))
+}
+
+func (m ResendMailer) send(ctx context.Context, to, subject, text, htmlBody string) error {
 	from := strings.TrimSpace(m.From)
 	if from == "" {
 		from = "IT Project <onboarding@resend.dev>"
@@ -46,9 +60,9 @@ func (m ResendMailer) SendCode(ctx context.Context, to, code string) error {
 	body, err := json.Marshal(map[string]any{
 		"from":    from,
 		"to":      []string{to},
-		"subject": productName + " verification code",
-		"text":    plainCodeEmail(code),
-		"html":    htmlCodeEmail(code),
+		"subject": subject,
+		"text":    text,
+		"html":    htmlBody,
 		"attachments": []map[string]any{
 			{
 				"filename":     "logo.png",
@@ -119,4 +133,45 @@ func htmlCodeEmail(code string) string {
   </table>
 </body>
 </html>`, productName, safe)
+}
+
+func linkedPatientName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "A patient"
+	}
+	return name
+}
+
+func plainLinkedEmail(patientName string) string {
+	who := linkedPatientName(patientName)
+	return strings.Join([]string{
+		productName,
+		"",
+		who + " added you as their caregiver on " + productName + ".",
+		"",
+		"Open the app and sign in as caregiver with this email to see their day.",
+		"",
+		"If you were not expecting this, you can ignore this email.",
+	}, "\n")
+}
+
+func htmlLinkedEmail(patientName string) string {
+	who := html.EscapeString(linkedPatientName(patientName))
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#ffffff;">
+  <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="background:#ffffff;">
+    <tr>
+      <td style="padding:32px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#0A0A0A;">
+        <img src="cid:logo" width="48" height="48" alt="%[1]s" style="display:block;border:0;border-radius:10px;"/>
+        <h1 style="margin:28px 0 12px;font-size:22px;font-weight:700;line-height:1.3;">You've been added</h1>
+        <p style="margin:0 0 16px;font-size:16px;line-height:1.5;color:#3A3A3A;">%[2]s added you as their caregiver on %[1]s.</p>
+        <p style="margin:0 0 16px;font-size:16px;line-height:1.5;color:#3A3A3A;">Open the app and sign in as caregiver with this email to see their day.</p>
+        <p style="margin:0;font-size:14px;line-height:1.5;color:#6B6B6B;">If you were not expecting this, you can ignore this email.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`, productName, who)
 }

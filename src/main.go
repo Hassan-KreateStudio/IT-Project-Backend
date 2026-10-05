@@ -80,7 +80,7 @@ func main() {
 	}
 	auth := authservices.New(users, cache, cfg.JWTSecret, codeMailer, cfg.AuthDebugCodes)
 	patients := patientsvc.New(users)
-	caregiver := caregiversvc.New(caregiverrepo.New(client))
+	caregiver := caregiversvc.New(caregiverrepo.New(client), codeMailer)
 	activity := activitysvc.New(activityrepo.New(client))
 	glucose := glucosesvc.New(glucoserepo.New(client))
 	analysis := analysissvc.New(patients, caregiver, activity, glucose)

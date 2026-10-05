@@ -2,21 +2,27 @@ package services
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"net/mail"
 	"strings"
 
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/auth/contracts"
+	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/auth/mailer"
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/caregiver/repository"
 	apperrors "github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/errors"
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo   *repository.Repository
+	mailer mailer.Mailer
 }
 
-func New(repo *repository.Repository) *Service {
-	return &Service{repo: repo}
+func New(repo *repository.Repository, codeMailer mailer.Mailer) *Service {
+	if codeMailer == nil {
+		codeMailer = mailer.LogMailer{}
+	}
+	return &Service{repo: repo, mailer: codeMailer}
 }
 
 func (s *Service) Link(ctx context.Context, patient *contracts.User, caregiverEmail string) (*contracts.User, error) {
@@ -35,6 +41,9 @@ func (s *Service) Link(ctx context.Context, patient *contracts.User, caregiverEm
 	}
 	if caregiver == nil {
 		return nil, apperrors.New("not_found", http.StatusNotFound)
+	}
+	if err := s.mailer.SendLinked(ctx, caregiver.Email, patient.DisplayName); err != nil {
+		log.Printf("caregiver link email failed for %s: %v", caregiver.Email, err)
 	}
 	return caregiver, nil
 }
