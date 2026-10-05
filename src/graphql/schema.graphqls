@@ -107,6 +107,8 @@ type Mutation {
   requestAuthCode(email: String!, role: Role!, displayName: String): AuthCodePayload!
   verifyAuthCode(email: String!, code: String!): AuthPayload!
   linkCaregiver(caregiverEmail: String!): User!
+  unlinkCaregiver(caregiverEmail: String!): Boolean!
+  stopMonitoring(patientId: ID!): Boolean!
   syncActivity(records: [ActivityRecordInput!]!): [ActivityRecord!]!
   addGlucose(value: Float!, recordedAt: Time!): GlucoseReading!
 }

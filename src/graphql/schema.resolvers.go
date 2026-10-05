@@ -56,6 +56,32 @@ func (r *mutationResolver) LinkCaregiver(ctx context.Context, caregiverEmail str
 	return mapUser(caregiver), nil
 }
 
+// UnlinkCaregiver is the resolver for the unlinkCaregiver field.
+func (r *mutationResolver) UnlinkCaregiver(ctx context.Context, caregiverEmail string) (bool, error) {
+	user, err := requireUser(ctx)
+	if err != nil {
+		return false, gqlErr(err)
+	}
+	removed, err := r.Caregiver.Unlink(ctx, user, caregiverEmail)
+	if err != nil {
+		return false, gqlErr(err)
+	}
+	return removed, nil
+}
+
+// StopMonitoring is the resolver for the stopMonitoring field.
+func (r *mutationResolver) StopMonitoring(ctx context.Context, patientID string) (bool, error) {
+	user, err := requireUser(ctx)
+	if err != nil {
+		return false, gqlErr(err)
+	}
+	removed, err := r.Caregiver.StopMonitoring(ctx, user, patientID)
+	if err != nil {
+		return false, gqlErr(err)
+	}
+	return removed, nil
+}
+
 // SyncActivity is the resolver for the syncActivity field.
 func (r *mutationResolver) SyncActivity(ctx context.Context, records []*ActivityRecordInput) ([]*ActivityRecord, error) {
 	user, err := requireUser(ctx)

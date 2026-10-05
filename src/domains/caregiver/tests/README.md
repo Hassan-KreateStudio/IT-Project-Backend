@@ -1,6 +1,6 @@
 # Caregiver proofs
 
-Live GraphQL checks for attach, list, read, and refuse.
+Live GraphQL checks for attach, detach, list, read, and refuse.
 
 Run in **Terminal**, not GraphQL Playground.
 
@@ -35,5 +35,11 @@ Accounts (created on first run via email code; no password):
 6. That caregiver cannot open `other-patient@example.com`
 7. Caregiver cannot `addGlucose`
 8. Caregiver cannot `syncActivity`
+9. No token cannot `unlinkCaregiver` or `stopMonitoring`
+10. Caregiver cannot `unlinkCaregiver`; patient cannot `stopMonitoring`
+11. Patient removes `caregiver@example.com` (`MONITORS` deleted)
+12. After that, `monitoredPatients` omits the patient and `patientDashboard` is refused
+13. Removing the same link again returns `not_found`
+14. Caregiver removes the patient with `stopMonitoring`, with the same follow-up checks
 
 No “one caregiver per patient” rule is tested. That is not a product rule.

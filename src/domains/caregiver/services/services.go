@@ -48,6 +48,42 @@ func (s *Service) Link(ctx context.Context, patient *contracts.User, caregiverEm
 	return caregiver, nil
 }
 
+func (s *Service) Unlink(ctx context.Context, patient *contracts.User, caregiverEmail string) (bool, error) {
+	if patient == nil || patient.Role != contracts.RolePatient {
+		return false, apperrors.New("forbidden", http.StatusForbidden)
+	}
+
+	email := strings.ToLower(strings.TrimSpace(caregiverEmail))
+	if _, err := mail.ParseAddress(email); err != nil {
+		return false, apperrors.New("invalid_email", http.StatusBadRequest)
+	}
+
+	removed, err := s.repo.Unlink(ctx, patient.ID, email)
+	if err != nil {
+		return false, err
+	}
+	if !removed {
+		return false, apperrors.New("not_found", http.StatusNotFound)
+	}
+	return true, nil
+}
+
+func (s *Service) StopMonitoring(ctx context.Context, caregiver *contracts.User, patientID string) (bool, error) {
+	if caregiver == nil || caregiver.Role != contracts.RoleCaregiver {
+		return false, apperrors.New("forbidden", http.StatusForbidden)
+	}
+
+	patientID = strings.TrimSpace(patientID)
+	removed, err := s.repo.StopMonitoring(ctx, caregiver.ID, patientID)
+	if err != nil {
+		return false, err
+	}
+	if !removed {
+		return false, apperrors.New("not_found", http.StatusNotFound)
+	}
+	return true, nil
+}
+
 func (s *Service) ListPatients(ctx context.Context, viewer *contracts.User) ([]*contracts.User, error) {
 	if viewer == nil {
 		return nil, apperrors.New("unauthorized", http.StatusUnauthorized)

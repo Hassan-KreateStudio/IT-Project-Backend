@@ -46,6 +46,44 @@ func (r *Repository) Link(ctx context.Context, patientID, caregiverEmail string)
 	return userFromNode(node), nil
 }
 
+func (r *Repository) Unlink(ctx context.Context, patientID, caregiverEmail string) (bool, error) {
+	return r.deleteMonitors(ctx, `
+		MATCH (c:User {email: $email, role: 'CAREGIVER'})-[rel:MONITORS]->(p:User {id: $patientId, role: 'PATIENT'})
+		DELETE rel
+		RETURN true AS removed
+	`, map[string]any{
+		"patientId": patientID,
+		"email":     caregiverEmail,
+	})
+}
+
+func (r *Repository) StopMonitoring(ctx context.Context, caregiverID, patientID string) (bool, error) {
+	return r.deleteMonitors(ctx, `
+		MATCH (c:User {id: $caregiverId, role: 'CAREGIVER'})-[rel:MONITORS]->(p:User {id: $patientId, role: 'PATIENT'})
+		DELETE rel
+		RETURN true AS removed
+	`, map[string]any{
+		"caregiverId": caregiverID,
+		"patientId":   patientID,
+	})
+}
+
+func (r *Repository) deleteMonitors(ctx context.Context, query string, params map[string]any) (bool, error) {
+	value, err := r.db.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+		res, err := tx.Run(ctx, query, params)
+		if err != nil {
+			return false, err
+		}
+		removed := res.Next(ctx)
+		return removed, res.Err()
+	})
+	if err != nil {
+		return false, err
+	}
+	ok, _ := value.(bool)
+	return ok, nil
+}
+
 func (r *Repository) CanMonitor(ctx context.Context, caregiverID, patientID string) (bool, error) {
 	value, err := r.db.ExecuteRead(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
 		res, err := tx.Run(ctx, `

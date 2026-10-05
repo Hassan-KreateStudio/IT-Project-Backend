@@ -117,7 +117,9 @@ type ComplexityRoot struct {
 		AddGlucose      func(childComplexity int, value float64, recordedAt time.Time) int
 		LinkCaregiver   func(childComplexity int, caregiverEmail string) int
 		RequestAuthCode func(childComplexity int, email string, role Role, displayName *string) int
+		StopMonitoring  func(childComplexity int, patientID string) int
 		SyncActivity    func(childComplexity int, records []*ActivityRecordInput) int
+		UnlinkCaregiver func(childComplexity int, caregiverEmail string) int
 		VerifyAuthCode  func(childComplexity int, email string, code string) int
 	}
 
@@ -142,6 +144,8 @@ type MutationResolver interface {
 	RequestAuthCode(ctx context.Context, email string, role Role, displayName *string) (*AuthCodePayload, error)
 	VerifyAuthCode(ctx context.Context, email string, code string) (*AuthPayload, error)
 	LinkCaregiver(ctx context.Context, caregiverEmail string) (*User, error)
+	UnlinkCaregiver(ctx context.Context, caregiverEmail string) (bool, error)
+	StopMonitoring(ctx context.Context, patientID string) (bool, error)
 	SyncActivity(ctx context.Context, records []*ActivityRecordInput) ([]*ActivityRecord, error)
 	AddGlucose(ctx context.Context, value float64, recordedAt time.Time) (*GlucoseReading, error)
 }
@@ -437,6 +441,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.LinkCaregiver(childComplexity, args["caregiverEmail"].(string)), true
+	case "Mutation.stopMonitoring":
+		if e.complexity.Mutation.StopMonitoring == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_stopMonitoring_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.StopMonitoring(childComplexity, args["patientId"].(string)), true
+	case "Mutation.unlinkCaregiver":
+		if e.complexity.Mutation.UnlinkCaregiver == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_unlinkCaregiver_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UnlinkCaregiver(childComplexity, args["caregiverEmail"].(string)), true
 	case "Mutation.requestAuthCode":
 		if e.complexity.Mutation.RequestAuthCode == nil {
 			break
@@ -692,6 +718,28 @@ func (ec *executionContext) field_Mutation_linkCaregiver_args(ctx context.Contex
 		return nil, err
 	}
 	args["caregiverEmail"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_unlinkCaregiver_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "caregiverEmail", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["caregiverEmail"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_stopMonitoring_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "patientId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["patientId"] = arg0
 	return args, nil
 }
 
@@ -2181,6 +2229,88 @@ func (ec *executionContext) fieldContext_Mutation_linkCaregiver(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_linkCaregiver_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_unlinkCaregiver(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_unlinkCaregiver,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().UnlinkCaregiver(ctx, fc.Args["caregiverEmail"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_unlinkCaregiver(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_unlinkCaregiver_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_stopMonitoring(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_stopMonitoring,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().StopMonitoring(ctx, fc.Args["patientId"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_stopMonitoring(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_stopMonitoring_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4818,6 +4948,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "linkCaregiver":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_linkCaregiver(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unlinkCaregiver":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_unlinkCaregiver(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stopMonitoring":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_stopMonitoring(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
