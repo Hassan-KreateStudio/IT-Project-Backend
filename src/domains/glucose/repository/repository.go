@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/contracts"
+	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/daykey"
 	neo4jdb "github.com/Hassan-KreateStudio/IT-Project-Backend/src/platform/neo4j"
 
 	"github.com/google/uuid"
@@ -31,10 +32,16 @@ func (r *Repository) Create(ctx context.Context, patientID string, value float64
 				createdAt: $createdAt
 			})
 			MERGE (p)-[:GENERATES]->(g)
+			MERGE (d:Day {patientId: $patientId, date: $day})
+			ON CREATE SET d.id = $dayId
+			MERGE (p)-[:HAS_DAY]->(d)
+			MERGE (d)-[:HAS_GLUCOSE]->(g)
 			RETURN g
 		`, map[string]any{
 			"id":         uuid.NewString(),
 			"patientId":  patientID,
+			"day":        daykey.FromSourceAndTime("", recordedAt),
+			"dayId":      uuid.NewString(),
 			"value":      value,
 			"recordedAt": recordedAt.UTC(),
 			"createdAt":  time.Now().UTC(),

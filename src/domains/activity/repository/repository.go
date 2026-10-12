@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/activity/contracts"
+	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/daykey"
 	neo4jdb "github.com/Hassan-KreateStudio/IT-Project-Backend/src/platform/neo4j"
 
 	"github.com/google/uuid"
@@ -25,6 +26,8 @@ func (r *Repository) Upsert(ctx context.Context, patientID string, input contrac
 			"id":               uuid.NewString(),
 			"patientId":        patientID,
 			"sourceId":         input.SourceID,
+			"day":              daykey.FromSourceAndTime(input.SourceID, input.RecordedAt),
+			"dayId":            uuid.NewString(),
 			"recordedAt":       input.RecordedAt.UTC(),
 			"stepCount":        input.StepCount,
 			"durationMinutes":  input.DurationMinutes,
@@ -49,6 +52,10 @@ func (r *Repository) Upsert(ctx context.Context, patientID string, input contrac
 			    a.intensity = $intensity,
 			    a.sedentaryMinutes = $sedentaryMinutes
 			MERGE (p)-[:GENERATES]->(a)
+			MERGE (d:Day {patientId: $patientId, date: $day})
+			ON CREATE SET d.id = $dayId
+			MERGE (p)-[:HAS_DAY]->(d)
+			MERGE (d)-[:HAS_ACTIVITY]->(a)
 			RETURN a
 		`, params)
 		if err != nil {
