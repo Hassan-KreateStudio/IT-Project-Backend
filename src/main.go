@@ -21,6 +21,8 @@ import (
 	glucoserepo "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/repository"
 	glucosesvc "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/services"
 	patientsvc "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/patient/services"
+	profilerepo "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/profile/repository"
+	profilesvc "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/profile/services"
 	gql "github.com/Hassan-KreateStudio/IT-Project-Backend/src/graphql"
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/config"
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/middleware"
@@ -83,6 +85,7 @@ func main() {
 	caregiver := caregiversvc.New(caregiverrepo.New(client), codeMailer)
 	activity := activitysvc.New(activityrepo.New(client))
 	glucose := glucosesvc.New(glucoserepo.New(client))
+	profile := profilesvc.New(profilerepo.New(client))
 	analysis := analysissvc.New(patients, caregiver, activity, glucose)
 
 	resolver := &gql.Resolver{
@@ -90,6 +93,7 @@ func main() {
 		Caregiver: caregiver,
 		Activity:  activity,
 		Glucose:   glucose,
+		Profile:   profile,
 		Analysis:  analysis,
 	}
 

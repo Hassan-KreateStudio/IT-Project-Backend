@@ -11,6 +11,7 @@ import (
 	activitycontracts "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/activity/contracts"
 	authcontracts "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/auth/contracts"
 	authservices "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/auth/services"
+	profilecontracts "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/profile/contracts"
 )
 
 // RequestAuthCode is the resolver for the requestAuthCode field.
@@ -115,6 +116,24 @@ func (r *mutationResolver) AddGlucose(ctx context.Context, value float64, record
 		return nil, gqlErr(err)
 	}
 	return mapGlucose(reading), nil
+}
+
+// SyncProfile is the resolver for the syncProfile field.
+func (r *mutationResolver) SyncProfile(ctx context.Context, input PatientProfileInput) (*PatientProfile, error) {
+	user, err := requireUser(ctx)
+	if err != nil {
+		return nil, gqlErr(err)
+	}
+	profile, err := r.Profile.Sync(ctx, user, profilecontracts.SyncInput{
+		AgeYears: input.AgeYears,
+		HeightCm: input.HeightCm,
+		WeightKg: input.WeightKg,
+		BMI:      input.Bmi,
+	})
+	if err != nil {
+		return nil, gqlErr(err)
+	}
+	return mapProfile(profile), nil
 }
 
 // Health is the resolver for the health field.

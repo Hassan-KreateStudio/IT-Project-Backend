@@ -6,6 +6,7 @@ import (
 	authservices "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/auth/services"
 	caregiversvc "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/caregiver/services"
 	glucosesvc "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/services"
+	profilesvc "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/profile/services"
 )
 
 type Resolver struct {
@@ -13,5 +14,6 @@ type Resolver struct {
 	Caregiver *caregiversvc.Service
 	Activity  *activitysvc.Service
 	Glucose   *glucosesvc.Service
+	Profile   *profilesvc.Service
 	Analysis  *analysissvc.Service
 }

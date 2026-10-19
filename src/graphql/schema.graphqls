@@ -19,6 +19,21 @@ type User {
   createdAt: Time!
 }
 
+type PatientProfile {
+  ageYears: Int
+  heightCm: Float
+  weightKg: Float
+  bmi: Float
+  updatedAt: Time!
+}
+
+input PatientProfileInput {
+  ageYears: Int
+  heightCm: Float
+  weightKg: Float
+  bmi: Float
+}
+
 type AuthPayload {
   token: String!
   user: User!
@@ -111,4 +126,5 @@ type Mutation {
   stopMonitoring(patientId: ID!): Boolean!
   syncActivity(records: [ActivityRecordInput!]!): [ActivityRecord!]!
   addGlucose(value: Float!, recordedAt: Time!): GlucoseReading!
+  syncProfile(input: PatientProfileInput!): PatientProfile!
 }

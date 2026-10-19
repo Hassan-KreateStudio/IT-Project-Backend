@@ -89,6 +89,21 @@ type GlucoseTrend struct {
 type Mutation struct {
 }
 
+type PatientProfile struct {
+	AgeYears  *int      `json:"ageYears,omitempty"`
+	HeightCm  *float64  `json:"heightCm,omitempty"`
+	WeightKg  *float64  `json:"weightKg,omitempty"`
+	Bmi       *float64  `json:"bmi,omitempty"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+type PatientProfileInput struct {
+	AgeYears *int     `json:"ageYears,omitempty"`
+	HeightCm *float64 `json:"heightCm,omitempty"`
+	WeightKg *float64 `json:"weightKg,omitempty"`
+	Bmi      *float64 `json:"bmi,omitempty"`
+}
+
 type Query struct {
 }
 

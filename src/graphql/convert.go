@@ -8,6 +8,7 @@ import (
 	analysiscontracts "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/analysis/contracts"
 	authcontracts "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/auth/contracts"
 	glucosecontracts "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/contracts"
+	profilecontracts "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/profile/contracts"
 	apperrors "github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/errors"
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/middleware"
 
@@ -72,6 +73,19 @@ func mapActivity(record *activitycontracts.ActivityRecord) *ActivityRecord {
 		DurationMinutes:  record.DurationMinutes,
 		Intensity:        ActivityIntensity(record.Intensity),
 		SedentaryMinutes: record.SedentaryMinutes,
+	}
+}
+
+func mapProfile(profile *profilecontracts.Profile) *PatientProfile {
+	if profile == nil {
+		return nil
+	}
+	return &PatientProfile{
+		AgeYears:  profile.AgeYears,
+		HeightCm:  profile.HeightCm,
+		WeightKg:  profile.WeightKg,
+		Bmi:       profile.BMI,
+		UpdatedAt: profile.UpdatedAt,
 	}
 }
 

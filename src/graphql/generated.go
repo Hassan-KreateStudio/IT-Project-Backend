@@ -119,7 +119,16 @@ type ComplexityRoot struct {
 		RequestAuthCode func(childComplexity int, email string, role Role, displayName *string) int
 		StopMonitoring  func(childComplexity int, patientID string) int
 		SyncActivity    func(childComplexity int, records []*ActivityRecordInput) int
+		SyncProfile     func(childComplexity int, input PatientProfileInput) int
 		VerifyAuthCode  func(childComplexity int, email string, code string) int
+	}
+
+	PatientProfile struct {
+		AgeYears  func(childComplexity int) int
+		Bmi       func(childComplexity int) int
+		HeightCm  func(childComplexity int) int
+		UpdatedAt func(childComplexity int) int
+		WeightKg  func(childComplexity int) int
 	}
 
 	Query struct {
@@ -147,6 +156,7 @@ type MutationResolver interface {
 	StopMonitoring(ctx context.Context, patientID string) (bool, error)
 	SyncActivity(ctx context.Context, records []*ActivityRecordInput) ([]*ActivityRecord, error)
 	AddGlucose(ctx context.Context, value float64, recordedAt time.Time) (*GlucoseReading, error)
+	SyncProfile(ctx context.Context, input PatientProfileInput) (*PatientProfile, error)
 }
 type QueryResolver interface {
 	Health(ctx context.Context) (string, error)
@@ -474,6 +484,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.SyncActivity(childComplexity, args["records"].([]*ActivityRecordInput)), true
+	case "Mutation.syncProfile":
+		if e.complexity.Mutation.SyncProfile == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_syncProfile_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SyncProfile(childComplexity, args["input"].(PatientProfileInput)), true
 	case "Mutation.verifyAuthCode":
 		if e.complexity.Mutation.VerifyAuthCode == nil {
 			break
@@ -485,6 +506,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.VerifyAuthCode(childComplexity, args["email"].(string), args["code"].(string)), true
+
+	case "PatientProfile.ageYears":
+		if e.complexity.PatientProfile.AgeYears == nil {
+			break
+		}
+
+		return e.complexity.PatientProfile.AgeYears(childComplexity), true
+	case "PatientProfile.bmi":
+		if e.complexity.PatientProfile.Bmi == nil {
+			break
+		}
+
+		return e.complexity.PatientProfile.Bmi(childComplexity), true
+	case "PatientProfile.heightCm":
+		if e.complexity.PatientProfile.HeightCm == nil {
+			break
+		}
+
+		return e.complexity.PatientProfile.HeightCm(childComplexity), true
+	case "PatientProfile.updatedAt":
+		if e.complexity.PatientProfile.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.PatientProfile.UpdatedAt(childComplexity), true
+	case "PatientProfile.weightKg":
+		if e.complexity.PatientProfile.WeightKg == nil {
+			break
+		}
+
+		return e.complexity.PatientProfile.WeightKg(childComplexity), true
 
 	case "Query.caregivers":
 		if e.complexity.Query.Caregivers == nil {
@@ -573,6 +625,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputActivityRecordInput,
+		ec.unmarshalInputPatientProfileInput,
 	)
 	first := true
 
@@ -756,6 +809,17 @@ func (ec *executionContext) field_Mutation_syncActivity_args(ctx context.Context
 		return nil, err
 	}
 	args["records"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_syncProfile_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNPatientProfileInput2githubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐPatientProfileInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -2364,6 +2428,204 @@ func (ec *executionContext) fieldContext_Mutation_addGlucose(ctx context.Context
 	if fc.Args, err = ec.field_Mutation_addGlucose_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_syncProfile(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_syncProfile,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().SyncProfile(ctx, fc.Args["input"].(PatientProfileInput))
+		},
+		nil,
+		ec.marshalNPatientProfile2ᚖgithubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐPatientProfile,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_syncProfile(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "ageYears":
+				return ec.fieldContext_PatientProfile_ageYears(ctx, field)
+			case "heightCm":
+				return ec.fieldContext_PatientProfile_heightCm(ctx, field)
+			case "weightKg":
+				return ec.fieldContext_PatientProfile_weightKg(ctx, field)
+			case "bmi":
+				return ec.fieldContext_PatientProfile_bmi(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_PatientProfile_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PatientProfile", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_syncProfile_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PatientProfile_ageYears(ctx context.Context, field graphql.CollectedField, obj *PatientProfile) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PatientProfile_ageYears,
+		func(ctx context.Context) (any, error) {
+			return obj.AgeYears, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_PatientProfile_ageYears(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PatientProfile",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PatientProfile_heightCm(ctx context.Context, field graphql.CollectedField, obj *PatientProfile) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PatientProfile_heightCm,
+		func(ctx context.Context) (any, error) {
+			return obj.HeightCm, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_PatientProfile_heightCm(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PatientProfile",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PatientProfile_weightKg(ctx context.Context, field graphql.CollectedField, obj *PatientProfile) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PatientProfile_weightKg,
+		func(ctx context.Context) (any, error) {
+			return obj.WeightKg, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_PatientProfile_weightKg(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PatientProfile",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PatientProfile_bmi(ctx context.Context, field graphql.CollectedField, obj *PatientProfile) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PatientProfile_bmi,
+		func(ctx context.Context) (any, error) {
+			return obj.Bmi, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_PatientProfile_bmi(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PatientProfile",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PatientProfile_updatedAt(ctx context.Context, field graphql.CollectedField, obj *PatientProfile) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PatientProfile_updatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PatientProfile_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PatientProfile",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -4402,6 +4664,54 @@ func (ec *executionContext) unmarshalInputActivityRecordInput(ctx context.Contex
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputPatientProfileInput(ctx context.Context, obj any) (PatientProfileInput, error) {
+	var it PatientProfileInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"ageYears", "heightCm", "weightKg", "bmi"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "ageYears":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ageYears"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AgeYears = data
+		case "heightCm":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("heightCm"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.HeightCm = data
+		case "weightKg":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("weightKg"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WeightKg = data
+		case "bmi":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("bmi"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Bmi = data
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -4954,6 +5264,60 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_addGlucose(ctx, field)
 			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "syncProfile":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_syncProfile(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var patientProfileImplementors = []string{"PatientProfile"}
+
+func (ec *executionContext) _PatientProfile(ctx context.Context, sel ast.SelectionSet, obj *PatientProfile) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, patientProfileImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PatientProfile")
+		case "ageYears":
+			out.Values[i] = ec._PatientProfile_ageYears(ctx, field, obj)
+		case "heightCm":
+			out.Values[i] = ec._PatientProfile_heightCm(ctx, field, obj)
+		case "weightKg":
+			out.Values[i] = ec._PatientProfile_weightKg(ctx, field, obj)
+		case "bmi":
+			out.Values[i] = ec._PatientProfile_bmi(ctx, field, obj)
+		case "updatedAt":
+			out.Values[i] = ec._PatientProfile_updatedAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -5930,6 +6294,25 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNPatientProfile2githubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐPatientProfile(ctx context.Context, sel ast.SelectionSet, v PatientProfile) graphql.Marshaler {
+	return ec._PatientProfile(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNPatientProfile2ᚖgithubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐPatientProfile(ctx context.Context, sel ast.SelectionSet, v *PatientProfile) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PatientProfile(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNPatientProfileInput2githubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐPatientProfileInput(ctx context.Context, v any) (PatientProfileInput, error) {
+	res, err := ec.unmarshalInputPatientProfileInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNRole2githubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐRole(ctx context.Context, v any) (Role, error) {

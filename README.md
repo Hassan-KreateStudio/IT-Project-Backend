@@ -50,7 +50,7 @@ Local proofs need `AUTH_DEBUG_CODES=1` so `requestAuthCode` returns `debugCode`.
 
 Authenticated (Bearer JWT):
 
-- Patient: `syncActivity`, `addGlucose`, `dashboard`, `caregivers`
+- Patient: `syncActivity`, `addGlucose`, `syncProfile`, `dashboard`, `caregivers`
 - Caregiver: `linkPatient`, `monitoredPatients`, `patientDashboard`, `stopMonitoring`
 
 Dashboard analysis is computed on query. It is not stored as a graph node.

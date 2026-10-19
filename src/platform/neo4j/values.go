@@ -33,6 +33,23 @@ func NodeIntPtr(node neo4j.Node, key string) *int {
 	return &n
 }
 
+func NodeFloatPtr(node neo4j.Node, key string) *float64 {
+	value, ok := node.Props[key]
+	if !ok || value == nil {
+		return nil
+	}
+	n := AsFloat(value)
+	return &n
+}
+
+func NodeStringPtr(node neo4j.Node, key string) *string {
+	value, ok := node.Props[key].(string)
+	if !ok || value == "" {
+		return nil
+	}
+	return &value
+}
+
 func AsInt(value any) int {
 	switch n := value.(type) {
 	case int:
