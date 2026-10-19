@@ -23,7 +23,7 @@ func (s *Service) Add(ctx context.Context, patient *authcontracts.User, value fl
 	if patient == nil || patient.Role != authcontracts.RolePatient {
 		return nil, apperrors.New("forbidden", http.StatusForbidden)
 	}
-	if value <= 0 {
+	if value < 40 || value > 400 {
 		return nil, apperrors.New("invalid_glucose", http.StatusBadRequest)
 	}
 	if recordedAt.IsZero() {
