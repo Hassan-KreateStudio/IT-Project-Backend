@@ -103,7 +103,7 @@ def main():
     _, _, data = gql(
         """
         mutation {
-          linkCaregiver(caregiverEmail: "caregiver@example.com") { email role }
+          linkPatient(patientEmail: "patient@example.com") { email role }
         }
         """
     )
@@ -112,26 +112,26 @@ def main():
     _, _, data = gql(
         """
         mutation {
-          linkCaregiver(caregiverEmail: "caregiver@example.com") { email }
-        }
-        """,
-        token=caregiver_token,
-    )
-    check(results, "caregiver cannot link", "forbidden" in codes(data), codes(data))
-
-    _, _, data = gql(
-        """
-        mutation {
-          linkCaregiver(caregiverEmail: "caregiver@example.com") { email role }
+          linkPatient(patientEmail: "patient@example.com") { email }
         }
         """,
         token=patient_token,
     )
-    linked = (data.get("data") or {}).get("linkCaregiver") or {}
+    check(results, "patient cannot link", "forbidden" in codes(data), codes(data))
+
+    _, _, data = gql(
+        """
+        mutation {
+          linkPatient(patientEmail: "patient@example.com") { email role }
+        }
+        """,
+        token=caregiver_token,
+    )
+    linked = (data.get("data") or {}).get("linkPatient") or {}
     check(
         results,
-        "patient attaches caregiver",
-        linked.get("email") == CAREGIVER_EMAIL and linked.get("role") == "CAREGIVER",
+        "caregiver attaches patient",
+        linked.get("email") == PATIENT_EMAIL and linked.get("role") == "PATIENT",
         linked or codes(data),
     )
 
@@ -144,6 +144,16 @@ def main():
         "caregiver lists linked patient",
         PATIENT_EMAIL in emails,
         [item.get("email") for item in patients] or codes(data),
+    )
+
+    _, _, data = gql("{ caregivers { email role } }", token=patient_token)
+    watchers = (data.get("data") or {}).get("caregivers") or []
+    watcher_emails = {item.get("email") for item in watchers}
+    check(
+        results,
+        "patient lists caregivers",
+        CAREGIVER_EMAIL in watcher_emails,
+        [item.get("email") for item in watchers] or codes(data),
     )
 
     patient_id = patient.get("id")
@@ -207,30 +217,11 @@ def main():
     _, _, data = gql(
         """
         mutation {
-          unlinkCaregiver(caregiverEmail: "caregiver@example.com")
-        }
-        """
-    )
-    check(results, "no token cannot unlink", "unauthorized" in codes(data), codes(data))
-
-    _, _, data = gql(
-        """
-        mutation {
           stopMonitoring(patientId: "missing")
         }
         """
     )
     check(results, "no token cannot stop monitoring", "unauthorized" in codes(data), codes(data))
-
-    _, _, data = gql(
-        """
-        mutation {
-          unlinkCaregiver(caregiverEmail: "caregiver@example.com")
-        }
-        """,
-        token=caregiver_token,
-    )
-    check(results, "caregiver cannot unlink", "forbidden" in codes(data), codes(data))
 
     _, _, data = gql(
         f"""
@@ -242,68 +233,6 @@ def main():
     )
     check(results, "patient cannot stop monitoring", "forbidden" in codes(data), codes(data))
 
-    _, _, data = gql(
-        """
-        mutation {
-          unlinkCaregiver(caregiverEmail: "caregiver@example.com")
-        }
-        """,
-        token=patient_token,
-    )
-    check(
-        results,
-        "patient removes caregiver",
-        (data.get("data") or {}).get("unlinkCaregiver") is True,
-        data.get("data") or codes(data),
-    )
-
-    _, _, data = gql("{ monitoredPatients { email } }", token=caregiver_token)
-    patients = (data.get("data") or {}).get("monitoredPatients") or []
-    emails = {item.get("email") for item in patients}
-    check(
-        results,
-        "caregiver list omits removed patient",
-        PATIENT_EMAIL not in emails,
-        [item.get("email") for item in patients] or codes(data),
-    )
-
-    _, _, data = gql(
-        f"""
-        query {{
-          patientDashboard(patientId: "{patient_id}") {{ patient {{ email }} }}
-        }}
-        """,
-        token=caregiver_token,
-    )
-    check(results, "caregiver cannot read removed patient", "forbidden" in codes(data), codes(data))
-
-    _, _, data = gql(
-        """
-        mutation {
-          unlinkCaregiver(caregiverEmail: "caregiver@example.com")
-        }
-        """,
-        token=patient_token,
-    )
-    check(results, "second unlink is not found", "not_found" in codes(data), codes(data))
-
-    _, _, data = gql(
-        """
-        mutation {
-          linkCaregiver(caregiverEmail: "caregiver@example.com") { email }
-        }
-        """,
-        token=patient_token,
-    )
-    relinked = (data.get("data") or {}).get("linkCaregiver") or {}
-    check(
-        results,
-        "patient reattaches caregiver",
-        relinked.get("email") == CAREGIVER_EMAIL,
-        relinked or codes(data),
-    )
-
-    caregiver_token = ensure_user(CAREGIVER_EMAIL, "CAREGIVER", "Test Caregiver")
     _, _, data = gql(
         f"""
         mutation {{
@@ -329,6 +258,16 @@ def main():
         [item.get("email") for item in patients] or codes(data),
     )
 
+    _, _, data = gql("{ caregivers { email } }", token=patient_token)
+    watchers = (data.get("data") or {}).get("caregivers") or []
+    watcher_emails = {item.get("email") for item in watchers}
+    check(
+        results,
+        "patient caregivers omit removed watcher",
+        CAREGIVER_EMAIL not in watcher_emails,
+        [item.get("email") for item in watchers] or codes(data),
+    )
+
     _, _, data = gql(
         f"""
         query {{
@@ -348,6 +287,22 @@ def main():
         token=caregiver_token,
     )
     check(results, "second stop is not found", "not_found" in codes(data), codes(data))
+
+    _, _, data = gql(
+        """
+        mutation {
+          linkPatient(patientEmail: "patient@example.com") { email }
+        }
+        """,
+        token=caregiver_token,
+    )
+    relinked = (data.get("data") or {}).get("linkPatient") or {}
+    check(
+        results,
+        "caregiver reattaches patient",
+        relinked.get("email") == PATIENT_EMAIL,
+        relinked or codes(data),
+    )
 
     passed = sum(1 for _, ok, _ in results if ok)
     print(f"\ncaregiver: {passed}/{len(results)} passed")

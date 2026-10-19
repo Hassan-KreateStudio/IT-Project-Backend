@@ -99,6 +99,7 @@ type Query {
   health: String!
   me: User!
   monitoredPatients: [User!]!
+  caregivers: [User!]!
   dashboard(from: Time, to: Time): Dashboard!
   patientDashboard(patientId: ID!, from: Time, to: Time): Dashboard!
 }
@@ -106,8 +107,7 @@ type Query {
 type Mutation {
   requestAuthCode(email: String!, role: Role!, displayName: String): AuthCodePayload!
   verifyAuthCode(email: String!, code: String!): AuthPayload!
-  linkCaregiver(caregiverEmail: String!): User!
-  unlinkCaregiver(caregiverEmail: String!): Boolean!
+  linkPatient(patientEmail: String!): User!
   stopMonitoring(patientId: ID!): Boolean!
   syncActivity(records: [ActivityRecordInput!]!): [ActivityRecord!]!
   addGlucose(value: Float!, recordedAt: Time!): GlucoseReading!

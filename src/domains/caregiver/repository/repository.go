@@ -17,16 +17,16 @@ func New(db *neo4jdb.Client) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) Link(ctx context.Context, patientID, caregiverEmail string) (*contracts.User, error) {
+func (r *Repository) Link(ctx context.Context, caregiverID, patientEmail string) (*contracts.User, error) {
 	value, err := r.db.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
 		res, err := tx.Run(ctx, `
-			MATCH (p:User {id: $patientId, role: 'PATIENT'})
-			MATCH (c:User {email: $email, role: 'CAREGIVER'})
+			MATCH (c:User {id: $caregiverId, role: 'CAREGIVER'})
+			MATCH (p:User {email: $email, role: 'PATIENT'})
 			MERGE (c)-[:MONITORS]->(p)
-			RETURN c
+			RETURN p
 		`, map[string]any{
-			"patientId": patientID,
-			"email":     caregiverEmail,
+			"caregiverId": caregiverID,
+			"email":       patientEmail,
 		})
 		if err != nil {
 			return nil, err
@@ -44,17 +44,6 @@ func (r *Repository) Link(ctx context.Context, patientID, caregiverEmail string)
 		return nil, err
 	}
 	return userFromNode(node), nil
-}
-
-func (r *Repository) Unlink(ctx context.Context, patientID, caregiverEmail string) (bool, error) {
-	return r.deleteMonitors(ctx, `
-		MATCH (c:User {email: $email, role: 'CAREGIVER'})-[rel:MONITORS]->(p:User {id: $patientId, role: 'PATIENT'})
-		DELETE rel
-		RETURN true AS removed
-	`, map[string]any{
-		"patientId": patientID,
-		"email":     caregiverEmail,
-	})
 }
 
 func (r *Repository) StopMonitoring(ctx context.Context, caregiverID, patientID string) (bool, error) {
@@ -103,6 +92,37 @@ func (r *Repository) CanMonitor(ctx context.Context, caregiverID, patientID stri
 	}
 	ok, _ := value.(bool)
 	return ok, nil
+}
+
+func (r *Repository) ListCaregivers(ctx context.Context, patientID string) ([]*contracts.User, error) {
+	value, err := r.db.ExecuteRead(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+		res, err := tx.Run(ctx, `
+			MATCH (c:User {role: 'CAREGIVER'})-[:MONITORS]->(p:User {id: $patientId, role: 'PATIENT'})
+			RETURN c
+			ORDER BY c.displayName
+		`, map[string]any{"patientId": patientID})
+		if err != nil {
+			return nil, err
+		}
+
+		users := make([]*contracts.User, 0)
+		for res.Next(ctx) {
+			node, err := neo4jdb.AsNode(res.Record().Values[0])
+			if err != nil {
+				return nil, err
+			}
+			users = append(users, userFromNode(node))
+		}
+		return users, res.Err()
+	})
+	if err != nil {
+		return nil, err
+	}
+	users, _ := value.([]*contracts.User)
+	if users == nil {
+		return []*contracts.User{}, nil
+	}
+	return users, nil
 }
 
 func (r *Repository) ListPatients(ctx context.Context, caregiverID string) ([]*contracts.User, error) {

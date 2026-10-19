@@ -114,10 +114,10 @@ def main():
     gql(
         """
         mutation {
-          linkCaregiver(caregiverEmail: "caregiver@example.com") { email }
+          linkPatient(patientEmail: "patient@example.com") { email }
         }
         """,
-        token=patient_token,
+        token=caregiver_token,
     )
 
     _, _, data = gql("{ dashboard { patient { email } } }")

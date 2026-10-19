@@ -43,30 +43,17 @@ func (r *mutationResolver) VerifyAuthCode(ctx context.Context, email string, cod
 	return &AuthPayload{Token: result.Token, User: mapUser(result.User)}, nil
 }
 
-// LinkCaregiver is the resolver for the linkCaregiver field.
-func (r *mutationResolver) LinkCaregiver(ctx context.Context, caregiverEmail string) (*User, error) {
+// LinkPatient is the resolver for the linkPatient field.
+func (r *mutationResolver) LinkPatient(ctx context.Context, patientEmail string) (*User, error) {
 	user, err := requireUser(ctx)
 	if err != nil {
 		return nil, gqlErr(err)
 	}
-	caregiver, err := r.Caregiver.Link(ctx, user, caregiverEmail)
+	patient, err := r.Caregiver.Link(ctx, user, patientEmail)
 	if err != nil {
 		return nil, gqlErr(err)
 	}
-	return mapUser(caregiver), nil
-}
-
-// UnlinkCaregiver is the resolver for the unlinkCaregiver field.
-func (r *mutationResolver) UnlinkCaregiver(ctx context.Context, caregiverEmail string) (bool, error) {
-	user, err := requireUser(ctx)
-	if err != nil {
-		return false, gqlErr(err)
-	}
-	removed, err := r.Caregiver.Unlink(ctx, user, caregiverEmail)
-	if err != nil {
-		return false, gqlErr(err)
-	}
-	return removed, nil
+	return mapUser(patient), nil
 }
 
 // StopMonitoring is the resolver for the stopMonitoring field.
@@ -155,6 +142,19 @@ func (r *queryResolver) MonitoredPatients(ctx context.Context) ([]*User, error) 
 		return nil, gqlErr(err)
 	}
 	return mapUsers(patients), nil
+}
+
+// Caregivers is the resolver for the caregivers field.
+func (r *queryResolver) Caregivers(ctx context.Context) ([]*User, error) {
+	user, err := requireUser(ctx)
+	if err != nil {
+		return nil, gqlErr(err)
+	}
+	caregivers, err := r.Caregiver.ListCaregivers(ctx, user)
+	if err != nil {
+		return nil, gqlErr(err)
+	}
+	return mapUsers(caregivers), nil
 }
 
 // Dashboard is the resolver for the dashboard field.
