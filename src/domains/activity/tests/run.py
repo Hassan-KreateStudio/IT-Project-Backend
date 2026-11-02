@@ -186,7 +186,7 @@ def main():
             durationMinutes: 20
             intensity: LIGHT
             sedentaryMinutes: 80
-          }]) { id sourceId heartRate }
+          }]) { id sourceId stepCount heartRate }
         }
         """,
         token=patient_token,
@@ -194,8 +194,10 @@ def main():
     second = ((data.get("data") or {}).get("syncActivity") or [None])[0] or {}
     check(
         results,
-        "new sourceId is a new node; HR optional",
-        second.get("id") and second.get("id") != first.get("id") and second.get("heartRate") is None,
+        "same day, new sourceId merges into the day node and HR survives",
+        second.get("id") == first.get("id")
+        and second.get("stepCount") == 2000
+        and second.get("heartRate") == 90,
         second or codes(data),
     )
 
@@ -204,15 +206,15 @@ def main():
         mutation {
           syncActivity(records: [
             {
-              sourceId: "hk-proof-batch-a"
-              recordedAt: "2026-09-23T09:00:00Z"
+              sourceId: "hk:2026-09-22"
+              recordedAt: "2026-09-22T09:00:00Z"
               stepCount: 1111
               durationMinutes: 11
               intensity: LIGHT
               sedentaryMinutes: 10
             },
             {
-              sourceId: "hk-proof-batch-b"
+              sourceId: "hk:2026-09-23"
               recordedAt: "2026-09-23T18:00:00Z"
               stepCount: 2222
               heartRate: 77
@@ -229,7 +231,7 @@ def main():
     ids = {item.get("id") for item in batch}
     check(
         results,
-        "batch of two samples becomes two nodes",
+        "batch across days becomes one node per day",
         len(batch) == 2 and len(ids) == 2,
         batch or codes(data),
     )
