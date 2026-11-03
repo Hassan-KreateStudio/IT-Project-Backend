@@ -189,6 +189,19 @@ func (r *queryResolver) MonitoredPatients(ctx context.Context) ([]*User, error) 
 	return mapUsers(patients), nil
 }
 
+// PendingPatients is the resolver for the pendingPatients field.
+func (r *queryResolver) PendingPatients(ctx context.Context) ([]*User, error) {
+	user, err := requireUser(ctx)
+	if err != nil {
+		return nil, gqlErr(err)
+	}
+	patients, err := r.Caregiver.WaitingOn(ctx, user)
+	if err != nil {
+		return nil, gqlErr(err)
+	}
+	return mapUsers(patients), nil
+}
+
 // CaregiverRequests is the resolver for the caregiverRequests field.
 func (r *queryResolver) CaregiverRequests(ctx context.Context) ([]*CaregiverRequest, error) {
 	user, err := requireUser(ctx)
@@ -256,23 +269,3 @@ func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.
-/*
-	func (r *mutationResolver) LinkPatient(ctx context.Context, patientEmail string) (*User, error) {
-	user, err := requireUser(ctx)
-	if err != nil {
-		return nil, gqlErr(err)
-	}
-	patient, err := r.Caregiver.Link(ctx, user, patientEmail)
-	if err != nil {
-		return nil, gqlErr(err)
-	}
-	return mapUser(patient), nil
-}
-*/

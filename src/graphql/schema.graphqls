@@ -120,6 +120,7 @@ type Query {
   health: String!
   me: User!
   monitoredPatients: [User!]!
+  pendingPatients: [User!]!
   caregiverRequests: [CaregiverRequest!]!
   caregivers: [User!]!
   dashboard(from: Time, to: Time): Dashboard!

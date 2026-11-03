@@ -146,6 +146,7 @@ type ComplexityRoot struct {
 		Me                func(childComplexity int) int
 		MonitoredPatients func(childComplexity int) int
 		PatientDashboard  func(childComplexity int, patientID string, from *time.Time, to *time.Time) int
+		PendingPatients   func(childComplexity int) int
 	}
 
 	User struct {
@@ -173,6 +174,7 @@ type QueryResolver interface {
 	Health(ctx context.Context) (string, error)
 	Me(ctx context.Context) (*User, error)
 	MonitoredPatients(ctx context.Context) ([]*User, error)
+	PendingPatients(ctx context.Context) ([]*User, error)
 	CaregiverRequests(ctx context.Context) ([]*CaregiverRequest, error)
 	Caregivers(ctx context.Context) ([]*User, error)
 	Dashboard(ctx context.Context, from *time.Time, to *time.Time) (*Dashboard, error)
@@ -637,6 +639,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.PatientDashboard(childComplexity, args["patientId"].(string), args["from"].(*time.Time), args["to"].(*time.Time)), true
+	case "Query.pendingPatients":
+		if e.complexity.Query.PendingPatients == nil {
+			break
+		}
+
+		return e.complexity.Query.PendingPatients(childComplexity), true
 
 	case "User.createdAt":
 		if e.complexity.User.CreatedAt == nil {
@@ -2965,6 +2973,49 @@ func (ec *executionContext) _Query_monitoredPatients(ctx context.Context, field 
 }
 
 func (ec *executionContext) fieldContext_Query_monitoredPatients(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "email":
+				return ec.fieldContext_User_email(ctx, field)
+			case "displayName":
+				return ec.fieldContext_User_displayName(ctx, field)
+			case "role":
+				return ec.fieldContext_User_role(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
+			case "since":
+				return ec.fieldContext_User_since(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_pendingPatients(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_pendingPatients,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().PendingPatients(ctx)
+		},
+		nil,
+		ec.marshalNUser2ᚕᚖgithubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐUserᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_pendingPatients(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -5791,6 +5842,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_monitoredPatients(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "pendingPatients":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_pendingPatients(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
