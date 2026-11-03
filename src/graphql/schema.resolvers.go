@@ -44,17 +44,43 @@ func (r *mutationResolver) VerifyAuthCode(ctx context.Context, email string, cod
 	return &AuthPayload{Token: result.Token, User: mapUser(result.User)}, nil
 }
 
-// LinkPatient is the resolver for the linkPatient field.
-func (r *mutationResolver) LinkPatient(ctx context.Context, patientEmail string) (*User, error) {
+// RequestAccess is the resolver for the requestAccess field.
+func (r *mutationResolver) RequestAccess(ctx context.Context, patientEmail string) (*User, error) {
 	user, err := requireUser(ctx)
 	if err != nil {
 		return nil, gqlErr(err)
 	}
-	patient, err := r.Caregiver.Link(ctx, user, patientEmail)
+	patient, err := r.Caregiver.RequestAccess(ctx, user, patientEmail)
 	if err != nil {
 		return nil, gqlErr(err)
 	}
 	return mapUser(patient), nil
+}
+
+// RespondToRequest is the resolver for the respondToRequest field.
+func (r *mutationResolver) RespondToRequest(ctx context.Context, caregiverID string, accept bool) (bool, error) {
+	user, err := requireUser(ctx)
+	if err != nil {
+		return false, gqlErr(err)
+	}
+	resolved, err := r.Caregiver.Respond(ctx, user, caregiverID, accept)
+	if err != nil {
+		return false, gqlErr(err)
+	}
+	return resolved, nil
+}
+
+// RevokeCaregiver is the resolver for the revokeCaregiver field.
+func (r *mutationResolver) RevokeCaregiver(ctx context.Context, caregiverID string) (bool, error) {
+	user, err := requireUser(ctx)
+	if err != nil {
+		return false, gqlErr(err)
+	}
+	revoked, err := r.Caregiver.RevokeAccess(ctx, user, caregiverID)
+	if err != nil {
+		return false, gqlErr(err)
+	}
+	return revoked, nil
 }
 
 // StopMonitoring is the resolver for the stopMonitoring field.
@@ -163,6 +189,26 @@ func (r *queryResolver) MonitoredPatients(ctx context.Context) ([]*User, error) 
 	return mapUsers(patients), nil
 }
 
+// CaregiverRequests is the resolver for the caregiverRequests field.
+func (r *queryResolver) CaregiverRequests(ctx context.Context) ([]*CaregiverRequest, error) {
+	user, err := requireUser(ctx)
+	if err != nil {
+		return nil, gqlErr(err)
+	}
+	requests, err := r.Caregiver.PendingRequests(ctx, user)
+	if err != nil {
+		return nil, gqlErr(err)
+	}
+	out := make([]*CaregiverRequest, 0, len(requests))
+	for _, request := range requests {
+		out = append(out, &CaregiverRequest{
+			Caregiver:   mapUser(request),
+			RequestedAt: request.RequestedAt,
+		})
+	}
+	return out, nil
+}
+
 // Caregivers is the resolver for the caregivers field.
 func (r *queryResolver) Caregivers(ctx context.Context) ([]*User, error) {
 	user, err := requireUser(ctx)
@@ -210,3 +256,23 @@ func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+/*
+	func (r *mutationResolver) LinkPatient(ctx context.Context, patientEmail string) (*User, error) {
+	user, err := requireUser(ctx)
+	if err != nil {
+		return nil, gqlErr(err)
+	}
+	patient, err := r.Caregiver.Link(ctx, user, patientEmail)
+	if err != nil {
+		return nil, gqlErr(err)
+	}
+	return mapUser(patient), nil
+}
+*/

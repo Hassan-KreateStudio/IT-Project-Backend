@@ -55,6 +55,11 @@ type AuthPayload struct {
 	User  *User  `json:"user"`
 }
 
+type CaregiverRequest struct {
+	Caregiver   *User     `json:"caregiver"`
+	RequestedAt time.Time `json:"requestedAt"`
+}
+
 type Dashboard struct {
 	Patient        *User             `json:"patient"`
 	From           time.Time         `json:"from"`
@@ -108,11 +113,12 @@ type Query struct {
 }
 
 type User struct {
-	ID          string    `json:"id"`
-	Email       string    `json:"email"`
-	DisplayName string    `json:"displayName"`
-	Role        Role      `json:"role"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID          string     `json:"id"`
+	Email       string     `json:"email"`
+	DisplayName string     `json:"displayName"`
+	Role        Role       `json:"role"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	Since       *time.Time `json:"since,omitempty"`
 }
 
 type ActivityIntensity string

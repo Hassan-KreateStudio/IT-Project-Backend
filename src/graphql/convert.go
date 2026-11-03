@@ -1,6 +1,7 @@
 package graphql
 
 import (
+	"time"
 	"context"
 	"net/http"
 
@@ -49,7 +50,15 @@ func mapUser(user *authcontracts.User) *User {
 		DisplayName: user.DisplayName,
 		Role:        Role(user.Role),
 		CreatedAt:   user.CreatedAt,
+		Since:       sinceOrNull(user.Since),
 	}
+}
+
+func sinceOrNull(t time.Time) *time.Time {
+	if t.IsZero() {
+		return nil
+	}
+	return &t
 }
 
 func mapUsers(users []*authcontracts.User) []*User {

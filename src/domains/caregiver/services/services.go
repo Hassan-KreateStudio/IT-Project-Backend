@@ -25,7 +25,10 @@ func New(repo *repository.Repository, codeMailer mailer.Mailer) *Service {
 	return &Service{repo: repo, mailer: codeMailer}
 }
 
-func (s *Service) Link(ctx context.Context, caregiver *contracts.User, patientEmail string) (*contracts.User, error) {
+// RequestAccess opens a REQUESTS edge. Default deny: the patient sees nothing
+// and the caregiver sees nothing until they answer. Returns always-success so
+// a caller can't probe whether an email is a registered patient.
+func (s *Service) RequestAccess(ctx context.Context, caregiver *contracts.User, patientEmail string) (*contracts.User, error) {
 	if caregiver == nil || caregiver.Role != contracts.RoleCaregiver {
 		return nil, apperrors.New("forbidden", http.StatusForbidden)
 	}
@@ -38,7 +41,7 @@ func (s *Service) Link(ctx context.Context, caregiver *contracts.User, patientEm
 		return nil, apperrors.New("invalid_email", http.StatusBadRequest)
 	}
 
-	patient, err := s.repo.Link(ctx, caregiver.ID, email)
+	patient, err := s.repo.Request(ctx, caregiver.ID, email)
 	if err != nil {
 		return nil, err
 	}
@@ -46,9 +49,50 @@ func (s *Service) Link(ctx context.Context, caregiver *contracts.User, patientEm
 		return nil, apperrors.New("not_found", http.StatusNotFound)
 	}
 	if err := s.mailer.SendLinked(ctx, patient.Email, caregiver.DisplayName); err != nil {
-		log.Printf("patient link email failed for %s: %v", patient.Email, err)
+		log.Printf("patient request email failed for %s: %v", patient.Email, err)
 	}
 	return patient, nil
+}
+
+// Respond resolves the patient's answer. Accept grants MONITORS access.
+func (s *Service) Respond(ctx context.Context, patient *contracts.User, caregiverID string, accept bool) (bool, error) {
+	if patient == nil || patient.Role != contracts.RolePatient {
+		return false, apperrors.New("forbidden", http.StatusForbidden)
+	}
+	caregiverID = strings.TrimSpace(caregiverID)
+	return s.repo.Respond(ctx, patient.ID, caregiverID, accept)
+}
+
+// PendingRequests lists caregivers waiting on this patient.
+func (s *Service) PendingRequests(ctx context.Context, patient *contracts.User) ([]*contracts.User, error) {
+	if patient == nil || patient.Role != contracts.RolePatient {
+		return []*contracts.User{}, nil
+	}
+	return s.repo.PendingFor(ctx, patient.ID)
+}
+
+// WaitingOn lists patients this caregiver is waiting on.
+func (s *Service) WaitingOn(ctx context.Context, viewer *contracts.User) ([]*contracts.User, error) {
+	if viewer == nil || viewer.Role != contracts.RoleCaregiver {
+		return []*contracts.User{}, nil
+	}
+	return s.repo.WaitingOn(ctx, viewer.ID)
+}
+
+// RevokeAccess is the patient-side kill switch for one caregiver.
+func (s *Service) RevokeAccess(ctx context.Context, patient *contracts.User, caregiverID string) (bool, error) {
+	if patient == nil || patient.Role != contracts.RolePatient {
+		return false, apperrors.New("forbidden", http.StatusForbidden)
+	}
+	caregiverID = strings.TrimSpace(caregiverID)
+	removed, err := s.repo.RevokeAccess(ctx, patient.ID, caregiverID)
+	if err != nil {
+		return false, err
+	}
+	if !removed {
+		return false, apperrors.New("not_found", http.StatusNotFound)
+	}
+	return true, nil
 }
 
 func (s *Service) StopMonitoring(ctx context.Context, caregiver *contracts.User, patientID string) (bool, error) {

@@ -17,6 +17,12 @@ type User {
   displayName: String!
   role: Role!
   createdAt: Time!
+  since: Time
+}
+
+type CaregiverRequest {
+  caregiver: User!
+  requestedAt: Time!
 }
 
 type PatientProfile {
@@ -114,6 +120,7 @@ type Query {
   health: String!
   me: User!
   monitoredPatients: [User!]!
+  caregiverRequests: [CaregiverRequest!]!
   caregivers: [User!]!
   dashboard(from: Time, to: Time): Dashboard!
   patientDashboard(patientId: ID!, from: Time, to: Time): Dashboard!
@@ -122,7 +129,9 @@ type Query {
 type Mutation {
   requestAuthCode(email: String!, role: Role!, displayName: String): AuthCodePayload!
   verifyAuthCode(email: String!, code: String!): AuthPayload!
-  linkPatient(patientEmail: String!): User!
+  requestAccess(patientEmail: String!): User!
+  respondToRequest(caregiverId: ID!, accept: Boolean!): Boolean!
+  revokeCaregiver(caregiverId: ID!): Boolean!
   stopMonitoring(patientId: ID!): Boolean!
   syncActivity(records: [ActivityRecordInput!]!): [ActivityRecord!]!
   addGlucose(value: Float!, recordedAt: Time!): GlucoseReading!

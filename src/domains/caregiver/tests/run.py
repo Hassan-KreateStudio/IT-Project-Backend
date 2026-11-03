@@ -103,36 +103,72 @@ def main():
     _, _, data = gql(
         """
         mutation {
-          linkPatient(patientEmail: "patient@example.com") { email role }
+          requestAccess(patientEmail: "patient@example.com") { email role }
         }
         """
     )
-    check(results, "no token cannot link", "unauthorized" in codes(data), codes(data))
+    check(results, "no token cannot request", "unauthorized" in codes(data), codes(data))
 
     _, _, data = gql(
         """
         mutation {
-          linkPatient(patientEmail: "patient@example.com") { email }
+          requestAccess(patientEmail: "patient@example.com") { email }
         }
         """,
         token=patient_token,
     )
-    check(results, "patient cannot link", "forbidden" in codes(data), codes(data))
+    check(results, "patient cannot request", "forbidden" in codes(data), codes(data))
 
     _, _, data = gql(
         """
         mutation {
-          linkPatient(patientEmail: "patient@example.com") { email role }
+          requestAccess(patientEmail: "patient@example.com") { email role }
         }
         """,
         token=caregiver_token,
     )
-    linked = (data.get("data") or {}).get("linkPatient") or {}
+    linked = (data.get("data") or {}).get("requestAccess") or {}
     check(
         results,
-        "caregiver attaches patient",
+        "caregiver requests the patient",
         linked.get("email") == PATIENT_EMAIL and linked.get("role") == "PATIENT",
         linked or codes(data),
+    )
+
+    _, _, data = gql("{ monitoredPatients { email } }", token=caregiver_token)
+    pending_list = (data.get("data") or {}).get("monitoredPatients") or []
+    check(
+        results,
+        "pending request is not in monitoredPatients",
+        PATIENT_EMAIL not in {item.get("email") for item in pending_list},
+        [item.get("email") for item in pending_list] or codes(data),
+    )
+
+    _, _, data = gql("{ caregiverRequests { caregiver { email } } }", token=patient_token)
+    requests = (data.get("data") or {}).get("caregiverRequests") or []
+    check(
+        results,
+        "patient sees the pending request",
+        CAREGIVER_EMAIL in {item["caregiver"]["email"] for item in requests},
+        requests or codes(data),
+    )
+
+    _, _, data = gql("{ me { id } }", token=caregiver_token)
+    caregiver = (data.get("data") or {}).get("me") or {}
+
+    _, _, data = gql(
+        f"""
+        mutation {{
+          respondToRequest(caregiverId: "{caregiver.get("id")}", accept: true)
+        }}
+        """,
+        token=patient_token,
+    )
+    check(
+        results,
+        "patient accepts the request",
+        (data.get("data") or {}).get("respondToRequest") is True,
+        codes(data),
     )
 
     caregiver_token = ensure_user(CAREGIVER_EMAIL, "CAREGIVER", "Test Caregiver")
@@ -291,12 +327,12 @@ def main():
     _, _, data = gql(
         """
         mutation {
-          linkPatient(patientEmail: "patient@example.com") { email }
+          requestAccess(patientEmail: "patient@example.com") { email }
         }
         """,
         token=caregiver_token,
     )
-    relinked = (data.get("data") or {}).get("linkPatient") or {}
+    relinked = (data.get("data") or {}).get("requestAccess") or {}
     check(
         results,
         "caregiver reattaches patient",

@@ -82,6 +82,11 @@ type ComplexityRoot struct {
 		User  func(childComplexity int) int
 	}
 
+	CaregiverRequest struct {
+		Caregiver   func(childComplexity int) int
+		RequestedAt func(childComplexity int) int
+	}
+
 	Dashboard struct {
 		ActivityTrends func(childComplexity int) int
 		Alerts         func(childComplexity int) int
@@ -114,13 +119,15 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddGlucose      func(childComplexity int, value float64, recordedAt time.Time) int
-		LinkPatient     func(childComplexity int, patientEmail string) int
-		RequestAuthCode func(childComplexity int, email string, role Role, displayName *string) int
-		StopMonitoring  func(childComplexity int, patientID string) int
-		SyncActivity    func(childComplexity int, records []*ActivityRecordInput) int
-		SyncProfile     func(childComplexity int, input PatientProfileInput) int
-		VerifyAuthCode  func(childComplexity int, email string, code string) int
+		AddGlucose       func(childComplexity int, value float64, recordedAt time.Time) int
+		RequestAccess    func(childComplexity int, patientEmail string) int
+		RequestAuthCode  func(childComplexity int, email string, role Role, displayName *string) int
+		RespondToRequest func(childComplexity int, caregiverID string, accept bool) int
+		RevokeCaregiver  func(childComplexity int, caregiverID string) int
+		StopMonitoring   func(childComplexity int, patientID string) int
+		SyncActivity     func(childComplexity int, records []*ActivityRecordInput) int
+		SyncProfile      func(childComplexity int, input PatientProfileInput) int
+		VerifyAuthCode   func(childComplexity int, email string, code string) int
 	}
 
 	PatientProfile struct {
@@ -132,6 +139,7 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
+		CaregiverRequests func(childComplexity int) int
 		Caregivers        func(childComplexity int) int
 		Dashboard         func(childComplexity int, from *time.Time, to *time.Time) int
 		Health            func(childComplexity int) int
@@ -146,13 +154,16 @@ type ComplexityRoot struct {
 		Email       func(childComplexity int) int
 		ID          func(childComplexity int) int
 		Role        func(childComplexity int) int
+		Since       func(childComplexity int) int
 	}
 }
 
 type MutationResolver interface {
 	RequestAuthCode(ctx context.Context, email string, role Role, displayName *string) (*AuthCodePayload, error)
 	VerifyAuthCode(ctx context.Context, email string, code string) (*AuthPayload, error)
-	LinkPatient(ctx context.Context, patientEmail string) (*User, error)
+	RequestAccess(ctx context.Context, patientEmail string) (*User, error)
+	RespondToRequest(ctx context.Context, caregiverID string, accept bool) (bool, error)
+	RevokeCaregiver(ctx context.Context, caregiverID string) (bool, error)
 	StopMonitoring(ctx context.Context, patientID string) (bool, error)
 	SyncActivity(ctx context.Context, records []*ActivityRecordInput) ([]*ActivityRecord, error)
 	AddGlucose(ctx context.Context, value float64, recordedAt time.Time) (*GlucoseReading, error)
@@ -162,6 +173,7 @@ type QueryResolver interface {
 	Health(ctx context.Context) (string, error)
 	Me(ctx context.Context) (*User, error)
 	MonitoredPatients(ctx context.Context) ([]*User, error)
+	CaregiverRequests(ctx context.Context) ([]*CaregiverRequest, error)
 	Caregivers(ctx context.Context) ([]*User, error)
 	Dashboard(ctx context.Context, from *time.Time, to *time.Time) (*Dashboard, error)
 	PatientDashboard(ctx context.Context, patientID string, from *time.Time, to *time.Time) (*Dashboard, error)
@@ -311,6 +323,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.AuthPayload.User(childComplexity), true
 
+	case "CaregiverRequest.caregiver":
+		if e.complexity.CaregiverRequest.Caregiver == nil {
+			break
+		}
+
+		return e.complexity.CaregiverRequest.Caregiver(childComplexity), true
+	case "CaregiverRequest.requestedAt":
+		if e.complexity.CaregiverRequest.RequestedAt == nil {
+			break
+		}
+
+		return e.complexity.CaregiverRequest.RequestedAt(childComplexity), true
+
 	case "Dashboard.activityTrends":
 		if e.complexity.Dashboard.ActivityTrends == nil {
 			break
@@ -440,17 +465,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.AddGlucose(childComplexity, args["value"].(float64), args["recordedAt"].(time.Time)), true
-	case "Mutation.linkPatient":
-		if e.complexity.Mutation.LinkPatient == nil {
+	case "Mutation.requestAccess":
+		if e.complexity.Mutation.RequestAccess == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_linkPatient_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_requestAccess_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.LinkPatient(childComplexity, args["patientEmail"].(string)), true
+		return e.complexity.Mutation.RequestAccess(childComplexity, args["patientEmail"].(string)), true
 	case "Mutation.requestAuthCode":
 		if e.complexity.Mutation.RequestAuthCode == nil {
 			break
@@ -462,6 +487,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.RequestAuthCode(childComplexity, args["email"].(string), args["role"].(Role), args["displayName"].(*string)), true
+	case "Mutation.respondToRequest":
+		if e.complexity.Mutation.RespondToRequest == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_respondToRequest_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RespondToRequest(childComplexity, args["caregiverId"].(string), args["accept"].(bool)), true
+	case "Mutation.revokeCaregiver":
+		if e.complexity.Mutation.RevokeCaregiver == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_revokeCaregiver_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RevokeCaregiver(childComplexity, args["caregiverId"].(string)), true
 	case "Mutation.stopMonitoring":
 		if e.complexity.Mutation.StopMonitoring == nil {
 			break
@@ -538,6 +585,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.PatientProfile.WeightKg(childComplexity), true
 
+	case "Query.caregiverRequests":
+		if e.complexity.Query.CaregiverRequests == nil {
+			break
+		}
+
+		return e.complexity.Query.CaregiverRequests(childComplexity), true
 	case "Query.caregivers":
 		if e.complexity.Query.Caregivers == nil {
 			break
@@ -615,6 +668,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.User.Role(childComplexity), true
+	case "User.since":
+		if e.complexity.User.Since == nil {
+			break
+		}
+
+		return e.complexity.User.Since(childComplexity), true
 
 	}
 	return 0, false
@@ -758,7 +817,7 @@ func (ec *executionContext) field_Mutation_addGlucose_args(ctx context.Context, 
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_linkPatient_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_requestAccess_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "patientEmail", ec.unmarshalNString2string)
@@ -787,6 +846,33 @@ func (ec *executionContext) field_Mutation_requestAuthCode_args(ctx context.Cont
 		return nil, err
 	}
 	args["displayName"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_respondToRequest_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "caregiverId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["caregiverId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "accept", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["accept"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_revokeCaregiver_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "caregiverId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["caregiverId"] = arg0
 	return args, nil
 }
 
@@ -1524,8 +1610,82 @@ func (ec *executionContext) fieldContext_AuthPayload_user(_ context.Context, fie
 				return ec.fieldContext_User_role(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "since":
+				return ec.fieldContext_User_since(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CaregiverRequest_caregiver(ctx context.Context, field graphql.CollectedField, obj *CaregiverRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CaregiverRequest_caregiver,
+		func(ctx context.Context) (any, error) {
+			return obj.Caregiver, nil
+		},
+		nil,
+		ec.marshalNUser2ᚖgithubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐUser,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CaregiverRequest_caregiver(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CaregiverRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "email":
+				return ec.fieldContext_User_email(ctx, field)
+			case "displayName":
+				return ec.fieldContext_User_displayName(ctx, field)
+			case "role":
+				return ec.fieldContext_User_role(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
+			case "since":
+				return ec.fieldContext_User_since(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CaregiverRequest_requestedAt(ctx context.Context, field graphql.CollectedField, obj *CaregiverRequest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CaregiverRequest_requestedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.RequestedAt, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CaregiverRequest_requestedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CaregiverRequest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
 		},
 	}
 	return fc, nil
@@ -1565,6 +1725,8 @@ func (ec *executionContext) fieldContext_Dashboard_patient(_ context.Context, fi
 				return ec.fieldContext_User_role(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "since":
+				return ec.fieldContext_User_since(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -2230,15 +2392,15 @@ func (ec *executionContext) fieldContext_Mutation_verifyAuthCode(ctx context.Con
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_linkPatient(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_requestAccess(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_linkPatient,
+		ec.fieldContext_Mutation_requestAccess,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().LinkPatient(ctx, fc.Args["patientEmail"].(string))
+			return ec.resolvers.Mutation().RequestAccess(ctx, fc.Args["patientEmail"].(string))
 		},
 		nil,
 		ec.marshalNUser2ᚖgithubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐUser,
@@ -2247,7 +2409,7 @@ func (ec *executionContext) _Mutation_linkPatient(ctx context.Context, field gra
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_linkPatient(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_requestAccess(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -2265,6 +2427,8 @@ func (ec *executionContext) fieldContext_Mutation_linkPatient(ctx context.Contex
 				return ec.fieldContext_User_role(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "since":
+				return ec.fieldContext_User_since(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -2276,7 +2440,89 @@ func (ec *executionContext) fieldContext_Mutation_linkPatient(ctx context.Contex
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_linkPatient_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_requestAccess_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_respondToRequest(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_respondToRequest,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().RespondToRequest(ctx, fc.Args["caregiverId"].(string), fc.Args["accept"].(bool))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_respondToRequest(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_respondToRequest_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_revokeCaregiver(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_revokeCaregiver,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().RevokeCaregiver(ctx, fc.Args["caregiverId"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_revokeCaregiver(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_revokeCaregiver_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2693,6 +2939,8 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 				return ec.fieldContext_User_role(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "since":
+				return ec.fieldContext_User_since(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -2734,8 +2982,45 @@ func (ec *executionContext) fieldContext_Query_monitoredPatients(_ context.Conte
 				return ec.fieldContext_User_role(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "since":
+				return ec.fieldContext_User_since(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_caregiverRequests(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_caregiverRequests,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().CaregiverRequests(ctx)
+		},
+		nil,
+		ec.marshalNCaregiverRequest2ᚕᚖgithubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐCaregiverRequestᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_caregiverRequests(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "caregiver":
+				return ec.fieldContext_CaregiverRequest_caregiver(ctx, field)
+			case "requestedAt":
+				return ec.fieldContext_CaregiverRequest_requestedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CaregiverRequest", field.Name)
 		},
 	}
 	return fc, nil
@@ -2775,6 +3060,8 @@ func (ec *executionContext) fieldContext_Query_caregivers(_ context.Context, fie
 				return ec.fieldContext_User_role(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
+			case "since":
+				return ec.fieldContext_User_since(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -3137,6 +3424,35 @@ func (ec *executionContext) _User_createdAt(ctx context.Context, field graphql.C
 }
 
 func (ec *executionContext) fieldContext_User_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_since(ctx context.Context, field graphql.CollectedField, obj *User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_since,
+		func(ctx context.Context) (any, error) {
+			return obj.Since, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_since(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "User",
 		Field:      field,
@@ -4981,6 +5297,50 @@ func (ec *executionContext) _AuthPayload(ctx context.Context, sel ast.SelectionS
 	return out
 }
 
+var caregiverRequestImplementors = []string{"CaregiverRequest"}
+
+func (ec *executionContext) _CaregiverRequest(ctx context.Context, sel ast.SelectionSet, obj *CaregiverRequest) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, caregiverRequestImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CaregiverRequest")
+		case "caregiver":
+			out.Values[i] = ec._CaregiverRequest_caregiver(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "requestedAt":
+			out.Values[i] = ec._CaregiverRequest_requestedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var dashboardImplementors = []string{"Dashboard"}
 
 func (ec *executionContext) _Dashboard(ctx context.Context, sel ast.SelectionSet, obj *Dashboard) graphql.Marshaler {
@@ -5239,9 +5599,23 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "linkPatient":
+		case "requestAccess":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_linkPatient(ctx, field)
+				return ec._Mutation_requestAccess(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "respondToRequest":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_respondToRequest(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revokeCaregiver":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_revokeCaregiver(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -5429,6 +5803,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "caregiverRequests":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_caregiverRequests(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "caregivers":
 			field := field
 
@@ -5562,6 +5958,8 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "since":
+			out.Values[i] = ec._User_since(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6154,6 +6552,60 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNCaregiverRequest2ᚕᚖgithubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐCaregiverRequestᚄ(ctx context.Context, sel ast.SelectionSet, v []*CaregiverRequest) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNCaregiverRequest2ᚖgithubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐCaregiverRequest(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCaregiverRequest2ᚖgithubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐCaregiverRequest(ctx context.Context, sel ast.SelectionSet, v *CaregiverRequest) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CaregiverRequest(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNDashboard2githubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐDashboard(ctx context.Context, sel ast.SelectionSet, v Dashboard) graphql.Marshaler {

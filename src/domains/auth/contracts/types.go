@@ -16,4 +16,8 @@ type User struct {
 	Role         Role
 	PasswordHash string
 	CreatedAt    time.Time
+	// RequestedAt is set on caregiverRequests entries: when the ask was made.
+	RequestedAt time.Time
+	// Since is set on monitoredPatients/caregivers entries: when access began.
+	Since time.Time
 }
