@@ -15,9 +15,9 @@ type ActivityTrend struct {
 }
 
 type GlucoseTrend struct {
-	Date          string
-	AverageValue  float64
-	ReadingCount  int
+	Date         string
+	AverageValue float64
+	ReadingCount int
 }
 
 type Alert struct {
@@ -27,12 +27,12 @@ type Alert struct {
 }
 
 type DashboardSummary struct {
-	TotalSteps             int
-	AverageHeartRate       *float64
-	TotalActiveMinutes     int
-	TotalSedentaryMinutes  int
-	AverageGlucose         *float64
-	GlucoseReadingCount    int
+	TotalSteps            int
+	AverageHeartRate      *float64
+	TotalActiveMinutes    int
+	TotalSedentaryMinutes int
+	AverageGlucose        *float64
+	GlucoseReadingCount   int
 }
 
 type Dashboard struct {

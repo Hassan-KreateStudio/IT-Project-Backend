@@ -35,6 +35,9 @@ import (
 
 func main() {
 	migrateOnly := flag.Bool("migrate-only", false, "run Neo4j migrations and exit")
+	backfillGlucose := flag.Bool("backfill-glucose", false, "generate synthetic glucose for days without a reading, then exit")
+	backfillSeed := flag.Int64("seed", 42, "seed for the synthetic glucose generator")
+	backfillDryRun := flag.Bool("dry-run", false, "with -backfill-glucose, print the values without writing")
 	flag.Parse()
 
 	cfg := config.Load()
@@ -66,6 +69,21 @@ func main() {
 	}
 	if *migrateOnly {
 		log.Printf("migrations applied")
+		return
+	}
+
+	if *backfillGlucose {
+		loc, err := time.LoadLocation("Africa/Nairobi")
+		if err != nil {
+			loc = time.UTC
+		}
+		written, err := glucoserepo.New(client).BackfillSynthetic(context.Background(), *backfillSeed, loc, *backfillDryRun)
+		if err != nil {
+			log.Fatalf("synthetic glucose: %v", err)
+		}
+		if *backfillDryRun {
+			log.Printf("dry run: %d readings would be written", written)
+		}
 		return
 	}
 
