@@ -6,6 +6,7 @@ package graphql
 
 import (
 	"context"
+	"log"
 	"time"
 
 	activitycontracts "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/activity/contracts"
@@ -122,6 +123,14 @@ func (r *mutationResolver) SyncActivity(ctx context.Context, records []*Activity
 	saved, err := r.Activity.Sync(ctx, user, inputs)
 	if err != nil {
 		return nil, gqlErr(err)
+	}
+
+	// A day that arrives without glucose gets a generated one, so the history
+	// screen and the chart are never empty after a backfill.
+	if r.Glucose != nil {
+		if _, err := r.Glucose.FillSynthetic(ctx, user.ID); err != nil {
+			log.Printf("synthetic glucose after sync failed for %s: %v", user.ID, err)
+		}
 	}
 
 	out := make([]*ActivityRecord, 0, len(saved))

@@ -43,3 +43,13 @@ func (s *Service) Add(ctx context.Context, patient *authcontracts.User, value fl
 func (s *Service) ListInRange(ctx context.Context, patientID string, from, to time.Time) ([]*contracts.GlucoseReading, error) {
 	return s.repo.ListInRange(ctx, patientID, from, to)
 }
+
+// FillSynthetic gives this patient's activity days a glucose reading if they
+// have none. Called after a sync so a backfilled day is never bare.
+func (s *Service) FillSynthetic(ctx context.Context, patientID string) (int, error) {
+	loc, err := time.LoadLocation("Africa/Nairobi")
+	if err != nil {
+		loc = time.UTC
+	}
+	return s.repo.FillPatient(ctx, patientID, 42, loc)
+}

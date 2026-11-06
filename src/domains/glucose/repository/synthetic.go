@@ -20,13 +20,24 @@ type SyntheticDay struct {
 // oldest first. Days that already carry a reading are never touched, so the
 // backfill can run twice without duplicating anything.
 func (r *Repository) DaysWithoutGlucose(ctx context.Context) ([]SyntheticDay, error) {
+	return r.daysWithoutGlucose(ctx, nil)
+}
+
+// DaysWithoutGlucoseFor is the same question scoped to one patient, which is
+// what the sync path needs: fill the days that patient just uploaded.
+func (r *Repository) DaysWithoutGlucoseFor(ctx context.Context, patientID string) ([]SyntheticDay, error) {
+	return r.daysWithoutGlucose(ctx, &patientID)
+}
+
+func (r *Repository) daysWithoutGlucose(ctx context.Context, patientID *string) ([]SyntheticDay, error) {
 	value, err := r.db.ExecuteRead(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
 		res, err := tx.Run(ctx, `
 			MATCH (p:User {role: 'PATIENT'})-[:HAS_DAY]->(d:Day)
-			WHERE NOT (d)-[:HAS_GLUCOSE]->(:GlucoseReading)
+			WHERE ($patientId IS NULL OR p.id = $patientId)
+			  AND NOT (d)-[:HAS_GLUCOSE]->(:GlucoseReading)
 			RETURN p.id AS patientId, d.date AS date
 			ORDER BY d.date
-		`, nil)
+		`, map[string]any{"patientId": patientID})
 		if err != nil {
 			return nil, err
 		}
