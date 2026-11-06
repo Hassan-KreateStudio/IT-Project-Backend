@@ -13,6 +13,14 @@ import (
 // ones, so the history screen and the daily average have something to work
 // with. Seeded, so the same seed reproduces the same numbers.
 //
+// Reference cohort: ShanghaiT2DM (PhysioNet), ~100 type 2 patients on CGM.
+// The daily profile in the synthetic package is shaped after that cohort's
+// fasting/post-meal pattern, but the numbers are representative values taken
+// from published type 2 CGM summaries — they are NOT fitted to the dataset
+// itself. Say "modelled on ShanghaiT2DM ranges", not "sampled from
+// ShanghaiT2DM", in any write-up. Fitting the empirical distribution is a
+// separate job and would change only the four constants in synthetic.DailyProfile.
+//
 // Values are drawn independently of each day's activity on purpose — see the
 // synthetic package. This is test data and is flagged as such in the graph.
 func (r *Repository) BackfillSynthetic(ctx context.Context, seed int64, loc *time.Location, dryRun bool) (int, error) {

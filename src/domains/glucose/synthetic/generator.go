@@ -6,10 +6,12 @@
 // correlation between movement and glucose would be an artefact of this
 // generator rather than a finding.
 //
-// Profile follows aggregate type 2 diabetes CGM statistics in the shape of the
-// PhysioNet ShanghaiT2DM cohort: fasting in the morning, a post-meal peak after
-// lunch, a smaller one after dinner, and a small chance of a hyperglycaemic
-// excursion on any given day.
+// Reference cohort: ShanghaiT2DM on PhysioNet (~100 type 2 patients, CGM).
+// The daily shape below — fasting in the morning, the day's peak after lunch, a
+// smaller rise after dinner, and an occasional hyperglycaemic day — is modelled
+// on that cohort. The four numbers per slot are representative type 2 CGM
+// values from published summaries, not parameters fitted to the dataset. Any
+// write-up should say "modelled on ShanghaiT2DM ranges", not "sampled from".
 package synthetic
 
 import (
