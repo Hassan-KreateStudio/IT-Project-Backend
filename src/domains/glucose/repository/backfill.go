@@ -72,21 +72,26 @@ func (r *Repository) FillPatient(ctx context.Context, patientID string, seed int
 	}
 
 	rng := rand.New(rand.NewSource(seed))
-	written := 0
+	rows := make([]SyntheticInsert, 0, len(days)*3)
 	for _, day := range days {
 		date, err := time.ParseInLocation("2006-01-02", day.Date, loc)
 		if err != nil {
 			continue
 		}
 		for _, reading := range synthetic.Day(date, loc, rng) {
-			if err := r.CreateSynthetic(ctx, day, reading); err != nil {
-				return written, err
-			}
-			written++
+			rows = append(rows, SyntheticInsert{
+				Day:        day.Date,
+				Value:      reading.Value,
+				RecordedAt: reading.RecordedAt,
+			})
 		}
 	}
-	if written > 0 {
-		log.Printf("synthetic glucose: %d readings for %d days of patient %s", written, len(days), patientID)
+
+	if err := r.CreateSyntheticBatch(ctx, patientID, rows); err != nil {
+		return 0, err
 	}
-	return written, nil
+	if len(rows) > 0 {
+		log.Printf("synthetic glucose: %d readings for %d days of patient %s", len(rows), len(days), patientID)
+	}
+	return len(rows), nil
 }

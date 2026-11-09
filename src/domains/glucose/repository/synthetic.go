@@ -92,3 +92,54 @@ func (r *Repository) CreateSynthetic(ctx context.Context, day SyntheticDay, read
 		"createdAt":  time.Now().UTC(),
 	})
 }
+
+// SyntheticInsert is one row for the batched writer.
+type SyntheticInsert struct {
+	Day        string
+	Value      float64
+	RecordedAt time.Time
+}
+
+// CreateSyntheticBatch writes many readings in one transaction. The sync path
+// fills 90 days at a time, and a round trip per reading made that request slow
+// enough that the app looked stale while it ran.
+func (r *Repository) CreateSyntheticBatch(ctx context.Context, patientID string, rows []SyntheticInsert) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	payload := make([]map[string]any, 0, len(rows))
+	now := time.Now().UTC()
+	for _, row := range rows {
+		payload = append(payload, map[string]any{
+			"id":         uuid.NewString(),
+			"dayId":      uuid.NewString(),
+			"day":        row.Day,
+			"value":      row.Value,
+			"recordedAt": row.RecordedAt,
+			"createdAt":  now,
+		})
+	}
+
+	return r.db.RunWrite(ctx, `
+		MATCH (p:User {id: $patientId, role: 'PATIENT'})
+		UNWIND $rows AS row
+		MERGE (d:Day {patientId: $patientId, date: row.day})
+		ON CREATE SET d.id = row.dayId
+		MERGE (p)-[:HAS_DAY]->(d)
+		CREATE (g:GlucoseReading {
+			id: row.id,
+			patientId: $patientId,
+			value: row.value,
+			recordedAt: row.recordedAt,
+			createdAt: row.createdAt,
+			synthetic: true,
+			source: 'backfill'
+		})
+		MERGE (p)-[:GENERATES]->(g)
+		MERGE (d)-[:HAS_GLUCOSE]->(g)
+	`, map[string]any{
+		"patientId": patientID,
+		"rows":      payload,
+	})
+}
