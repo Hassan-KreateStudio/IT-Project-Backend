@@ -46,10 +46,16 @@ func (s *Service) ListInRange(ctx context.Context, patientID string, from, to ti
 
 // FillSynthetic gives this patient's activity days a glucose reading if they
 // have none. Called after a sync so a backfilled day is never bare.
+//
+// It deliberately does not inherit the request's cancellation: the client can
+// disconnect as soon as the activity records arrive, and the fill would be
+// killed half-way.
 func (s *Service) FillSynthetic(ctx context.Context, patientID string) (int, error) {
 	loc, err := time.LoadLocation("Africa/Nairobi")
 	if err != nil {
 		loc = time.UTC
 	}
-	return s.repo.FillPatient(ctx, patientID, 42, loc)
+	fillCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Minute)
+	defer cancel()
+	return s.repo.FillPatient(fillCtx, patientID, 42, loc)
 }
