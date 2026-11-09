@@ -77,6 +77,76 @@ func (r *Repository) Upsert(ctx context.Context, patientID string, input contrac
 	return record, nil
 }
 
+// UpsertBatch writes a whole backfill in one transaction. The per-record
+// Upsert made a 90-day pull 90 round trips, which is what the app was waiting
+// on at first launch.
+func (r *Repository) UpsertBatch(ctx context.Context, patientID string, inputs []contracts.SyncInput) ([]*contracts.ActivityRecord, error) {
+	if len(inputs) == 0 {
+		return []*contracts.ActivityRecord{}, nil
+	}
+
+	rows := make([]map[string]any, 0, len(inputs))
+	for _, input := range inputs {
+		var heartRate any
+		if input.HeartRate != nil {
+			heartRate = *input.HeartRate
+		}
+		rows = append(rows, map[string]any{
+			"sourceId":         input.SourceID,
+			"day":              daykey.FromSourceAndTime(input.SourceID, input.RecordedAt),
+			"dayId":            uuid.NewString(),
+			"recordedAt":       input.RecordedAt.UTC(),
+			"stepCount":        input.StepCount,
+			"heartRate":        heartRate,
+			"durationMinutes":  input.DurationMinutes,
+			"intensity":        string(input.Intensity),
+			"sedentaryMinutes": input.SedentaryMinutes,
+		})
+	}
+
+	value, err := r.db.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+		res, err := tx.Run(ctx, `
+			MATCH (p:User {id: $patientId, role: 'PATIENT'})
+			UNWIND $rows AS row
+			MERGE (d:Day {patientId: $patientId, date: row.day})
+			ON CREATE SET d.id = row.dayId
+			SET d.intensity = row.intensity
+			MERGE (p)-[:HAS_DAY]->(d)
+			MERGE (s:Steps {patientId: $patientId, day: row.day})
+			SET s.count = row.stepCount, s.sourceId = row.sourceId, s.recordedAt = row.recordedAt
+			MERGE (d)-[:HAS_STEPS]->(s)
+			MERGE (m:ActiveMinutes {patientId: $patientId, day: row.day})
+			SET m.minutes = row.durationMinutes
+			MERGE (d)-[:HAS_ACTIVE_MINUTES]->(m)
+			MERGE (sd:Sedentary {patientId: $patientId, day: row.day})
+			SET sd.minutes = row.sedentaryMinutes
+			MERGE (d)-[:HAS_SEDENTARY]->(sd)
+			MERGE (h:HeartRate {patientId: $patientId, day: row.day})
+			SET h.bpm = CASE WHEN row.heartRate IS NULL THEN h.bpm ELSE row.heartRate END
+			MERGE (d)-[:HAS_HEART_RATE]->(h)
+			RETURN d, s, m, sd, h
+		`, map[string]any{"patientId": patientID, "rows": rows})
+		if err != nil {
+			return nil, err
+		}
+
+		records := make([]*contracts.ActivityRecord, 0, len(rows))
+		for res.Next(ctx) {
+			record, err := recordFromValues(res.Record().Values)
+			if err != nil {
+				return nil, err
+			}
+			records = append(records, record)
+		}
+		return records, res.Err()
+	})
+	if err != nil {
+		return nil, err
+	}
+	records, _ := value.([]*contracts.ActivityRecord)
+	return records, nil
+}
+
 func (r *Repository) ListInRange(ctx context.Context, patientID string, from, to time.Time) ([]*contracts.ActivityRecord, error) {
 	value, err := r.db.ExecuteRead(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
 		res, err := tx.Run(ctx, `

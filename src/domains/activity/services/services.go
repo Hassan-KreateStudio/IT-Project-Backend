@@ -25,19 +25,18 @@ func (s *Service) Sync(ctx context.Context, patient *authcontracts.User, inputs 
 		return nil, apperrors.New("forbidden", http.StatusForbidden)
 	}
 
-	out := make([]*contracts.ActivityRecord, 0, len(inputs))
 	for _, input := range inputs {
 		if err := validateSync(input); err != nil {
 			return nil, err
 		}
-		record, err := s.repo.Upsert(ctx, patient.ID, input)
-		if err != nil {
-			return nil, err
-		}
-		if record == nil {
-			return nil, apperrors.New("not_found", http.StatusNotFound)
-		}
-		out = append(out, record)
+	}
+
+	out, err := s.repo.UpsertBatch(ctx, patient.ID, inputs)
+	if err != nil {
+		return nil, err
+	}
+	if out == nil {
+		return nil, apperrors.New("not_found", http.StatusNotFound)
 	}
 	return out, nil
 }
