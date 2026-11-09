@@ -8,6 +8,7 @@ import (
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/middleware"
 	neo4jdb "github.com/Hassan-KreateStudio/IT-Project-Backend/src/platform/neo4j"
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/routes/db"
+	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/routes/graph"
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/routes/ping"
 
 	"github.com/99designs/gqlgen/graphql/handler"
@@ -18,6 +19,9 @@ import (
 
 func Register(app *chi.Mux, client *neo4jdb.Client, resolver *gql.Resolver, auth *authservices.Service, cache *redis.Client) {
 	app.Route("/ping", ping.Register)
+	app.Route("/graph", func(r chi.Router) {
+		graph.Register(r, client)
+	})
 	app.Route("/db", func(r chi.Router) {
 		db.Register(r, client)
 	})

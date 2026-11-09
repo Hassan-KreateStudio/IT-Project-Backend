@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graph — IT Project</title>
+<style>
+  @font-face { font-family:'Bricolage'; src:url('fonts/BricolageGrotesque-ExtraBold.otf'); font-weight:800; }
+  @font-face { font-family:'Outfit'; src:url('fonts/Outfit-Regular.otf'); font-weight:400; }
+  @font-face { font-family:'Outfit'; src:url('fonts/Outfit-Medium.otf'); font-weight:500; }
+  @font-face { font-family:'Outfit'; src:url('fonts/Outfit-Bold.otf'); font-weight:700; }
+
+  :root{
+    --ink:#0A0A0A; --night:#161616; --dusk:#2A2A2A;
+    --flare:#FF3DAB; --acid:#D8FF3C; --aurora:#3DFFE7;
+    --canvas:#F6F4F0; --card:#FFFFFF; --hairline:#E6E2DC;
+    --mist:#EFECE6; --alert:#FF4D3A; --warn:#FFB020; --mute:#6E6E6E;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    background:var(--ink); color:#fff;
+    font-family:'Outfit',system-ui,sans-serif;
+    display:flex; flex-direction:column;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  header{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    padding:28px 32px 20px; border-bottom:1px solid #1e1e1e;
+  }
+  h1{
+    font-family:'Bricolage'; font-weight:800; font-size:40px;
+    letter-spacing:-1.2px; line-height:1;
+  }
+  .sub{ color:var(--mute); font-size:13px; margin-top:6px; }
+  .badge{
+    display:inline-flex; align-items:center; gap:7px;
+    font-size:10px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase;
+    color:var(--acid); border:1px solid rgba(216,255,60,0.28);
+    padding:6px 11px; border-radius:999px;
+  }
+  .dot{ width:7px; height:7px; border-radius:50%; background:var(--acid); }
+
+  main{ flex:1; display:flex; min-height:0; }
+
+  aside{
+    width:260px; flex:0 0 260px; border-right:1px solid #1e1e1e;
+    padding:20px 16px; overflow-y:auto;
+  }
+  .label{
+    font-size:10px; letter-spacing:1.8px; font-weight:700; text-transform:uppercase;
+    color:var(--mute); margin:0 6px 10px;
+  }
+  .item{
+    display:flex; align-items:center; gap:9px;
+    padding:9px 10px; border-radius:10px;
+    font-size:13px; color:#bdbdbd; cursor:pointer;
+  }
+  .item:hover{ background:#181818; color:#fff; }
+  .item.soon{ cursor:default; opacity:.45; }
+  .swatch{ width:8px; height:8px; border-radius:2px; flex:0 0 8px; }
+
+  .stage{
+    flex:1; position:relative; display:grid; place-items:center;
+    background:
+      radial-gradient(circle at 50% 42%, rgba(255,61,171,0.06), transparent 55%),
+      var(--ink);
+  }
+  .empty{ text-align:center; max-width:440px; padding:24px; }
+  .empty h2{
+    font-family:'Bricolage'; font-weight:800; font-size:26px;
+    letter-spacing:-0.6px; margin-bottom:10px;
+  }
+  .empty p{ color:var(--mute); font-size:14px; line-height:1.5; }
+  .empty code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    background:#181818; border:1px solid #242424; border-radius:6px;
+    padding:2px 6px; font-size:12px; color:var(--acid);
+  }
+
+  #cy{ position:absolute; inset:0; }
+  .detail{
+    position:absolute; right:20px; top:20px; width:260px;
+    background:rgba(22,22,22,0.96); border:1px solid #2a2a2a;
+    border-radius:16px; padding:14px 15px; display:none;
+    backdrop-filter:blur(12px);
+  }
+  .detail h3{
+    font-family:'Bricolage'; font-weight:800; font-size:16px;
+    letter-spacing:-0.3px; margin-bottom:8px;
+  }
+  .detail .row{
+    display:flex; justify-content:space-between; gap:10px;
+    font-size:12px; padding:3px 0; border-bottom:1px solid #1f1f1f;
+  }
+  .detail .row:last-child{ border-bottom:none; }
+  .detail .key{ color:var(--mute); }
+  .detail .val{ color:#fff; text-align:right; word-break:break-word; }
+  #legend{ display:flex; align-items:center; gap:14px; }
+  .legend{ display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--mute); }
+  .legend .swatch{ width:7px; height:7px; border-radius:2px; }
+
+  footer{
+    border-top:1px solid #1e1e1e; padding:12px 32px;
+    display:flex; gap:18px; align-items:center;
+    font-size:11px; color:var(--mute);
+  }
+  footer .accent{ color:var(--flare); }
+  footer .spacer{ flex:1; }
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Graph</h1>
+      <div class="sub">IT Project · Neo4j contents</div>
+    </div>
+    <span class="badge"><span class="dot"></span>Local</span>
+  </header>
+
+  <main>
+    <aside>
+      <div class="label">Relationships</div>
+      <div class="item soon"><span class="swatch" style="background:var(--flare)"></span>Steps → Glucose</div>
+      <div class="item soon"><span class="swatch" style="background:var(--acid)"></span>Exercise → Glucose</div>
+      <div class="item soon"><span class="swatch" style="background:var(--aurora)"></span>Heart rate → Steps</div>
+      <div class="item soon"><span class="swatch" style="background:var(--warn)"></span>Sedentary → Glucose</div>
+      <div class="label" style="margin-top:22px">Structure</div>
+      <div class="item soon"><span class="swatch" style="background:#8a8a8a"></span>Schema</div>
+      <div class="item soon"><span class="swatch" style="background:#8a8a8a"></span>One day</div>
+    </aside>
+
+    <section class="stage">
+      <div id="cy"></div>
+      <div class="detail" id="detail"></div>
+    </section>
+  </main>
+
+  <footer>
+    <span class="accent">●</span>
+    <span id="status">loading…</span>
+    <span class="spacer"></span>
+    <span id="legend"></span>
+    <span>IT Project</span>
+  </footer>
+
+  <script src="cytoscape.min.js"></script>
+  <script>
+    const COLORS = {
+      User:            '#D8FF3C',
+      Day:             '#FFFFFF',
+      Steps:           '#FF3DAB',
+      HeartRate:       '#3DFFE7',
+      ActiveMinutes:   '#FFB020',
+      Sedentary:       '#8A8A8A',
+      GlucoseReading:  '#4D7CFF'
+    };
+    const FALLBACK = '#4a4a4a';
+
+    const status = document.getElementById('status');
+    const detail = document.getElementById('detail');
+
+    fetch('data')
+      .then(r => r.json())
+      .then(build)
+      .catch(err => { status.textContent = 'failed: ' + err.message; });
+
+    function build(payload) {
+      const elements = [
+        ...payload.nodes.map(n => ({
+          data: {
+            id: n.id,
+            label: n.label,
+            color: COLORS[n.label] || FALLBACK,
+            props: n.props
+          }
+        })),
+        ...payload.edges.map(e => ({
+          data: { id: e.id, source: e.start, target: e.end, label: e.type }
+        }))
+      ];
+
+      if (!payload.nodes.length) {
+        status.textContent = 'the graph is empty';
+        return;
+      }
+
+      const cy = cytoscape({
+        container: document.getElementById('cy'),
+        elements,
+        wheelSensitivity: 0.2,
+        style: [
+          {
+            selector: 'node',
+            style: {
+              'background-color': 'data(color)',
+              'width': 30,
+              'height': 30,
+              'label': 'data(label)',
+              'font-family': 'Outfit, sans-serif',
+              'font-size': 10,
+              'font-weight': 700,
+              'color': '#9a9a9a',
+              'text-valign': 'bottom',
+              'text-halign': 'center',
+              'text-margin-y': 6,
+              'text-wrap': 'wrap',
+              'text-max-width': 70,
+              'border-width': 2,
+              'border-color': '#0A0A0A'
+            }
+          },
+          {
+            selector: 'node[label = "Day"]',
+            style: { 'shape': 'round-rectangle', 'width': 34, 'height': 34 }
+          },
+          {
+            selector: 'edge',
+            style: {
+              'width': 1.2,
+              'line-color': '#2f2f2f',
+              'target-arrow-color': '#2f2f2f',
+              'target-arrow-shape': 'triangle',
+              'arrow-scale': 0.6,
+              'curve-style': 'bezier'
+            }
+          },
+          {
+            selector: '.faded',
+            style: { 'opacity': 0.12 }
+          },
+          {
+            selector: '.focus',
+            style: { 'border-width': 3, 'border-color': '#FF3DAB' }
+          }
+        ],
+        layout: {
+          // A hierarchy reads better than a hairball: the User at the top,
+          // its Day below, the metrics under that.
+          name: 'breadthfirst',
+          directed: true,
+          padding: 70,
+          spacingFactor: 1.5,
+          nodeDimensionsIncludeLabels: true,
+          roots: [elements.find(e => e.data.label === 'User')?.data.id ?? rootId(elements)]
+        }
+      });
+
+      status.textContent = `${payload.meta.nodeCount} nodes · ${payload.meta.edgeCount} edges`
+        + (payload.meta.truncated ? ` (capped at ${payload.meta.limit})` : '');
+
+      document.getElementById('legend').innerHTML = Object.entries(COLORS)
+        .filter(([label]) => payload.nodes.some(n => n.label === label))
+        .map(([label, color]) =>
+          `<span class="legend"><span class="swatch" style="background:${color}"></span>${label}</span>`
+        ).join('');
+
+      cy.on('tap', 'node', event => {
+        const node = event.target;
+        cy.elements().addClass('faded').removeClass('focus');
+        node.closedNeighborhood().removeClass('faded');
+        node.addClass('focus');
+        showDetail(node.data('label'), node.data('props'));
+      });
+
+      cy.on('tap', event => {
+        if (event.target === cy) {
+          cy.elements().removeClass('faded focus');
+          detail.style.display = 'none';
+        }
+      });
+    }
+
+    // The root is the node nothing points at — the patient in this schema.
+    function rootId(elements) {
+      const targets = new Set(elements.filter(e => e.data.source).map(e => e.data.target));
+      const root = elements.find(e => !e.data.source && !targets.has(e.data.id));
+      return root ? root.data.id : elements[0].data.id;
+    }
+
+    function showDetail(label, props) {
+      const rows = Object.entries(props || {})
+        .map(([key, value]) => `<div class="row"><span class="key">${key}</span><span class="val">${value}</span></div>`)
+        .join('');
+      detail.innerHTML = `<h3>${label}</h3>${rows || '<div class="row"><span class="key">no properties</span></div>'}`;
+      detail.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
