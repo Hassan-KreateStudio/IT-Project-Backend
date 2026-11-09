@@ -103,24 +103,40 @@ type SyntheticInsert struct {
 // CreateSyntheticBatch writes many readings in one transaction. The sync path
 // fills 90 days at a time, and a round trip per reading made that request slow
 // enough that the app looked stale while it ran.
+// syntheticChunk keeps each transaction small enough for Aura, whose
+// server-side timeout is far below a whole 90-day fill.
+const syntheticChunk = 30
+
 func (r *Repository) CreateSyntheticBatch(ctx context.Context, patientID string, rows []SyntheticInsert) error {
 	if len(rows) == 0 {
 		return nil
 	}
 
-	payload := make([]map[string]any, 0, len(rows))
 	now := time.Now().UTC()
-	for _, row := range rows {
-		payload = append(payload, map[string]any{
-			"id":         uuid.NewString(),
-			"dayId":      uuid.NewString(),
-			"day":        row.Day,
-			"value":      row.Value,
-			"recordedAt": row.RecordedAt,
-			"createdAt":  now,
-		})
+	for start := 0; start < len(rows); start += syntheticChunk {
+		end := start + syntheticChunk
+		if end > len(rows) {
+			end = len(rows)
+		}
+		payload := make([]map[string]any, 0, end-start)
+		for _, row := range rows[start:end] {
+			payload = append(payload, map[string]any{
+				"id":         uuid.NewString(),
+				"dayId":      uuid.NewString(),
+				"day":        row.Day,
+				"value":      row.Value,
+				"recordedAt": row.RecordedAt,
+				"createdAt":  now,
+			})
+		}
+		if err := r.writeSyntheticChunk(ctx, patientID, payload); err != nil {
+			return err
+		}
 	}
+	return nil
+}
 
+func (r *Repository) writeSyntheticChunk(ctx context.Context, patientID string, payload []map[string]any) error {
 	return r.db.RunWrite(ctx, `
 		MATCH (p:User {id: $patientId, role: 'PATIENT'})
 		UNWIND $rows AS row
