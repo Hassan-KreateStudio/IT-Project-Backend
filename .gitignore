@@ -14,3 +14,6 @@
 # macOS metadata
 .DS_Store
 **/.DS_Store
+
+# Skill payloads are vendored, not built
+.dsh/skills/**/.DS_Store
