@@ -37,6 +37,10 @@ func Register(r chi.Router, client *neo4jdb.Client) {
 		serveAsset(w, web, "app.js")
 	})
 
+	r.Get("/analysis.mjs", func(w http.ResponseWriter, req *http.Request) {
+		serveAsset(w, web, "analysis.mjs")
+	})
+
 	r.Get("/fonts/*", func(w http.ResponseWriter, req *http.Request) {
 		// chi keeps the full URL path; the wildcard is the reliable name.
 		name := strings.TrimPrefix(chi.URLParam(req, "*"), "/")
@@ -58,7 +62,7 @@ func serveAsset(w http.ResponseWriter, files fs.FS, name string) {
 	switch path.Ext(name) {
 	case ".html":
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	case ".js":
+	case ".js", ".mjs":
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 	case ".otf":
 		w.Header().Set("Content-Type", "font/otf")
