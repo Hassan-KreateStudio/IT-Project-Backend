@@ -79,6 +79,7 @@
     padding:2px 6px; font-size:12px; color:var(--acid);
   }
 
+  .left{ position:relative; flex:1; min-width:0; }
   #cy{ position:absolute; inset:0; }
   .detail{
     position:absolute; right:20px; top:20px; width:260px;
@@ -108,184 +109,84 @@
   }
   footer .accent{ color:var(--flare); }
   footer .spacer{ flex:1; }
+
+  .left{ position:relative; flex:1; min-width:0; }
+  #cy{ position:absolute; inset:0; }
+  .search{
+    flex:1; max-width:360px; background:#141414; border:1px solid #242424;
+    border-radius:10px; padding:9px 13px; font-size:13px; color:#fff;
+    font-family:'Outfit',sans-serif; outline:none;
+  }
+  .search::placeholder{ color:#6E6E6E; }
+  .chip{
+    background:none; border:1px solid #2a2a2a; border-radius:999px;
+    padding:7px 11px; font-family:'Outfit',sans-serif; font-size:11px;
+    font-weight:700; letter-spacing:1.2px; text-transform:uppercase;
+    color:#9a9a9a; cursor:pointer;
+  }
+  .chip.on{ background:#FF3DAB; border-color:#FF3DAB; color:#0A0A0A; }
+  .chip.amber.on{ background:#FFB020; border-color:#FFB020; }
+  .crumb{ margin-left:auto; font-size:12px; color:#9a9a9a; }
+  .crumb b{ color:#fff; }
+  .crumb span{ cursor:pointer; }
+  .crumb span:hover{ color:#FF3DAB; }
+  .panel{
+    position:relative; inset:auto; width:340px; flex:0 0 340px;
+    padding:22px 24px; overflow-y:auto; border-left:1px solid #1c1c1c;
+    background:none; border-radius:0; backdrop-filter:none;
+  }
+  .note{
+    position:absolute; left:32px; top:16px; font-size:12px; color:#8a8a8a;
+    background:#141414; border:1px solid #242424; border-radius:9px;
+    padding:8px 12px; opacity:0; transition:opacity .2s;
+  }
+  .label{ font-size:10px; letter-spacing:1.8px; font-weight:700; text-transform:uppercase; color:#6E6E6E; margin-bottom:10px; }
+  .daynum{ font-family:'Bricolage'; font-size:40px; letter-spacing:-1.4px; line-height:1; }
+  .value{ font-family:'Bricolage'; font-size:52px; letter-spacing:-2px; line-height:1; }
+  .meta{ font-size:12px; color:#6E6E6E; margin-top:4px; }
+  .reading{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #1c1c1c; cursor:pointer; }
+  .reading:hover{ background:#131313; }
+  .reading .t{ font-size:11px; color:#6E6E6E; width:44px; }
+  .reading .v{ font-family:'Bricolage'; font-size:19px; letter-spacing:-0.6px; }
+  .reading .s{ font-size:11px; color:#6E6E6E; margin-left:auto; }
+  .stat{ display:flex; justify-content:space-between; font-size:12px; padding:5px 0; }
+  .stat span:first-child{ color:#6E6E6E; }
 </style>
 </head>
 <body>
   <header>
-    <div>
-      <h1>Graph</h1>
-      <div class="sub">IT Project · Neo4j contents</div>
-    </div>
-    <span class="badge"><span class="dot"></span>Local</span>
+    <h1>Graph</h1>
+    <input class="search" id="search" placeholder="Search a day, a value, a date…" autocomplete="off">
+    <button class="chip on" id="f-all">90 days</button>
+    <button class="chip" id="f-glucose">Glucose only</button>
+    <button class="chip" id="f-high">High days</button>
+    <div class="crumb" id="crumb"></div>
   </header>
 
   <main>
-    <aside>
-      <div class="label">Relationships</div>
-      <div class="item soon"><span class="swatch" style="background:var(--flare)"></span>Steps → Glucose</div>
-      <div class="item soon"><span class="swatch" style="background:var(--acid)"></span>Exercise → Glucose</div>
-      <div class="item soon"><span class="swatch" style="background:var(--aurora)"></span>Heart rate → Steps</div>
-      <div class="item soon"><span class="swatch" style="background:var(--warn)"></span>Sedentary → Glucose</div>
-      <div class="label" style="margin-top:22px">Structure</div>
-      <div class="item soon"><span class="swatch" style="background:#8a8a8a"></span>Schema</div>
-      <div class="item soon"><span class="swatch" style="background:#8a8a8a"></span>One day</div>
-    </aside>
-
-    <section class="stage">
+    <div class="left">
       <div id="cy"></div>
-      <div class="detail" id="detail"></div>
-    </section>
+      <div class="note" id="note"></div>
+    </div>
+    <aside class="panel" id="panel"></aside>
   </main>
 
   <footer>
     <span class="accent">●</span>
     <span id="status">loading…</span>
     <span class="spacer"></span>
-    <span id="legend"></span>
+    <span class="legend">
+      <span><i style="background:#FFFFFF"></i>Day</span>
+      <span><i style="background:#FF3DAB"></i>Steps</span>
+      <span><i style="background:#3DFFE7"></i>Heart</span>
+      <span><i style="background:#FFB020"></i>Active / high</span>
+      <span><i style="background:#4D7CFF"></i>Glucose</span>
+      <span><i style="background:#FF4D3A"></i>Low</span>
+    </span>
     <span>IT Project</span>
   </footer>
 
   <script src="cytoscape.min.js"></script>
-  <script>
-    const COLORS = {
-      User:            '#D8FF3C',
-      Day:             '#FFFFFF',
-      Steps:           '#FF3DAB',
-      HeartRate:       '#3DFFE7',
-      ActiveMinutes:   '#FFB020',
-      Sedentary:       '#8A8A8A',
-      GlucoseReading:  '#4D7CFF'
-    };
-    const FALLBACK = '#4a4a4a';
-
-    const status = document.getElementById('status');
-    const detail = document.getElementById('detail');
-
-    fetch('data')
-      .then(r => r.json())
-      .then(build)
-      .catch(err => { status.textContent = 'failed: ' + err.message; });
-
-    function build(payload) {
-      const elements = [
-        ...payload.nodes.map(n => ({
-          data: {
-            id: n.id,
-            label: n.label,
-            color: COLORS[n.label] || FALLBACK,
-            props: n.props
-          }
-        })),
-        ...payload.edges.map(e => ({
-          data: { id: e.id, source: e.start, target: e.end, label: e.type }
-        }))
-      ];
-
-      if (!payload.nodes.length) {
-        status.textContent = 'the graph is empty';
-        return;
-      }
-
-      const cy = cytoscape({
-        container: document.getElementById('cy'),
-        elements,
-        wheelSensitivity: 0.2,
-        style: [
-          {
-            selector: 'node',
-            style: {
-              'background-color': 'data(color)',
-              'width': 30,
-              'height': 30,
-              'label': 'data(label)',
-              'font-family': 'Outfit, sans-serif',
-              'font-size': 10,
-              'font-weight': 700,
-              'color': '#9a9a9a',
-              'text-valign': 'bottom',
-              'text-halign': 'center',
-              'text-margin-y': 6,
-              'text-wrap': 'wrap',
-              'text-max-width': 70,
-              'border-width': 2,
-              'border-color': '#0A0A0A'
-            }
-          },
-          {
-            selector: 'node[label = "Day"]',
-            style: { 'shape': 'round-rectangle', 'width': 34, 'height': 34 }
-          },
-          {
-            selector: 'edge',
-            style: {
-              'width': 1.2,
-              'line-color': '#2f2f2f',
-              'target-arrow-color': '#2f2f2f',
-              'target-arrow-shape': 'triangle',
-              'arrow-scale': 0.6,
-              'curve-style': 'bezier'
-            }
-          },
-          {
-            selector: '.faded',
-            style: { 'opacity': 0.12 }
-          },
-          {
-            selector: '.focus',
-            style: { 'border-width': 3, 'border-color': '#FF3DAB' }
-          }
-        ],
-        layout: {
-          // A hierarchy reads better than a hairball: the User at the top,
-          // its Day below, the metrics under that.
-          name: 'breadthfirst',
-          directed: true,
-          padding: 70,
-          spacingFactor: 1.5,
-          nodeDimensionsIncludeLabels: true,
-          roots: [elements.find(e => e.data.label === 'User')?.data.id ?? rootId(elements)]
-        }
-      });
-
-      status.textContent = `${payload.meta.nodeCount} nodes · ${payload.meta.edgeCount} edges`
-        + (payload.meta.truncated ? ` (capped at ${payload.meta.limit})` : '');
-
-      document.getElementById('legend').innerHTML = Object.entries(COLORS)
-        .filter(([label]) => payload.nodes.some(n => n.label === label))
-        .map(([label, color]) =>
-          `<span class="legend"><span class="swatch" style="background:${color}"></span>${label}</span>`
-        ).join('');
-
-      cy.on('tap', 'node', event => {
-        const node = event.target;
-        cy.elements().addClass('faded').removeClass('focus');
-        node.closedNeighborhood().removeClass('faded');
-        node.addClass('focus');
-        showDetail(node.data('label'), node.data('props'));
-      });
-
-      cy.on('tap', event => {
-        if (event.target === cy) {
-          cy.elements().removeClass('faded focus');
-          detail.style.display = 'none';
-        }
-      });
-    }
-
-    // The root is the node nothing points at — the patient in this schema.
-    function rootId(elements) {
-      const targets = new Set(elements.filter(e => e.data.source).map(e => e.data.target));
-      const root = elements.find(e => !e.data.source && !targets.has(e.data.id));
-      return root ? root.data.id : elements[0].data.id;
-    }
-
-    function showDetail(label, props) {
-      const rows = Object.entries(props || {})
-        .map(([key, value]) => `<div class="row"><span class="key">${key}</span><span class="val">${value}</span></div>`)
-        .join('');
-      detail.innerHTML = `<h3>${label}</h3>${rows || '<div class="row"><span class="key">no properties</span></div>'}`;
-      detail.style.display = 'block';
-    }
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>

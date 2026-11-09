@@ -33,6 +33,10 @@ func Register(r chi.Router, client *neo4jdb.Client) {
 		serveAsset(w, web, "cytoscape.min.js")
 	})
 
+	r.Get("/app.js", func(w http.ResponseWriter, req *http.Request) {
+		serveAsset(w, web, "app.js")
+	})
+
 	r.Get("/fonts/*", func(w http.ResponseWriter, req *http.Request) {
 		// chi keeps the full URL path; the wildcard is the reliable name.
 		name := strings.TrimPrefix(chi.URLParam(req, "*"), "/")

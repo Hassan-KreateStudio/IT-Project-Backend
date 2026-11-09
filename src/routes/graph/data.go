@@ -154,9 +154,6 @@ func convertNode(n neo4j.Node, id string) node {
 			props["initials"] = initials(fmt.Sprint(value))
 			hidden = append(hidden, key)
 			continue
-		case "id":
-			// the element id is the stable handle the page uses
-			continue
 		}
 		props[key] = normalise(value)
 	}
