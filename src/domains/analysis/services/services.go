@@ -5,6 +5,8 @@ import (
 	"math"
 	"net/http"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	activitycontracts "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/activity/contracts"
@@ -218,44 +220,61 @@ func rollupGlucose(readings []*glucosecontracts.GlucoseReading, loc *time.Locati
 	return trends, avg, len(readings)
 }
 
+// alertsFor reports one line per kind of problem, not one line per day.
+// A per-day alert feed reads like a log and buries the thing that matters.
 func alertsFor(trends []contracts.ActivityTrend, readings []*glucosecontracts.GlucoseReading) []contracts.Alert {
-	alerts := make([]contracts.Alert, 0)
+	highGlucose, lowGlucose, lowSteps := 0, 0, 0
 
 	for _, trend := range trends {
-		if trend.SedentaryMinutes >= 480 {
-			alerts = append(alerts, contracts.Alert{
-				Code:     "HIGH_SEDENTARY",
-				Message:  "Sedentary time was high on " + trend.Date + ".",
-				Severity: "warning",
-			})
-		}
 		if trend.StepCount > 0 && trend.StepCount < 3000 {
-			alerts = append(alerts, contracts.Alert{
-				Code:     "LOW_ACTIVITY",
-				Message:  "Step count was low on " + trend.Date + ".",
-				Severity: "info",
-			})
+			lowSteps++
 		}
 	}
-
 	for _, reading := range readings {
 		switch {
 		case reading.Value >= 180:
-			alerts = append(alerts, contracts.Alert{
-				Code:     "HIGH_GLUCOSE",
-				Message:  "A glucose reading was high.",
-				Severity: "warning",
-			})
+			highGlucose++
 		case reading.Value > 0 && reading.Value < 70:
-			alerts = append(alerts, contracts.Alert{
-				Code:     "LOW_GLUCOSE",
-				Message:  "A glucose reading was low.",
-				Severity: "warning",
-			})
+			lowGlucose++
 		}
 	}
 
+	alerts := make([]contracts.Alert, 0, 3)
+	if lowGlucose > 0 {
+		alerts = append(alerts, contracts.Alert{
+			Code:     "LOW_GLUCOSE",
+			Message:  countPhrase(lowGlucose, len(readings), "reading was", "readings were") + " below 70 mg/dL.",
+			Severity: "warning",
+		})
+	}
+	if highGlucose > 0 {
+		alerts = append(alerts, contracts.Alert{
+			Code:     "HIGH_GLUCOSE",
+			Message:  countPhrase(highGlucose, len(readings), "reading was", "readings were") + " above 180 mg/dL.",
+			Severity: "warning",
+		})
+	}
+	if lowSteps > 0 {
+		alerts = append(alerts, contracts.Alert{
+			Code:     "LOW_ACTIVITY",
+			Message:  countPhrase(lowSteps, len(trends), "day was", "days were") + " under 3,000 steps.",
+			Severity: "info",
+		})
+	}
 	return alerts
+}
+
+// countPhrase turns 3 of 7 into "3 of 7 days were", so the card reads as a
+// sentence instead of a date-stamped log line.
+func countPhrase(count, total int, singular, plural string) string {
+	unit := "days"
+	if count == 1 {
+		return "1 " + strings.TrimSuffix(unit, "s") + " " + singular
+	}
+	if total > 0 {
+		return strconv.Itoa(count) + " of " + strconv.Itoa(total) + " " + unit + " " + plural
+	}
+	return strconv.Itoa(count) + " " + unit + " " + plural
 }
 
 func round1(value float64) float64 {
