@@ -141,7 +141,7 @@ type ComplexityRoot struct {
 	Query struct {
 		CaregiverRequests func(childComplexity int) int
 		Caregivers        func(childComplexity int) int
-		Dashboard         func(childComplexity int, from *time.Time, to *time.Time) int
+		Dashboard         func(childComplexity int, from *time.Time, to *time.Time, offsetMinutes *int) int
 		Health            func(childComplexity int) int
 		Me                func(childComplexity int) int
 		MonitoredPatients func(childComplexity int) int
@@ -177,7 +177,7 @@ type QueryResolver interface {
 	PendingPatients(ctx context.Context) ([]*User, error)
 	CaregiverRequests(ctx context.Context) ([]*CaregiverRequest, error)
 	Caregivers(ctx context.Context) ([]*User, error)
-	Dashboard(ctx context.Context, from *time.Time, to *time.Time) (*Dashboard, error)
+	Dashboard(ctx context.Context, from *time.Time, to *time.Time, offsetMinutes *int) (*Dashboard, error)
 	PatientDashboard(ctx context.Context, patientID string, from *time.Time, to *time.Time) (*Dashboard, error)
 }
 
@@ -609,7 +609,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.Dashboard(childComplexity, args["from"].(*time.Time), args["to"].(*time.Time)), true
+		return e.complexity.Query.Dashboard(childComplexity, args["from"].(*time.Time), args["to"].(*time.Time), args["offsetMinutes"].(*int)), true
 	case "Query.health":
 		if e.complexity.Query.Health == nil {
 			break
@@ -957,6 +957,11 @@ func (ec *executionContext) field_Query_dashboard_args(ctx context.Context, rawA
 		return nil, err
 	}
 	args["to"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "offsetMinutes", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["offsetMinutes"] = arg2
 	return args, nil
 }
 
@@ -3128,7 +3133,7 @@ func (ec *executionContext) _Query_dashboard(ctx context.Context, field graphql.
 		ec.fieldContext_Query_dashboard,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().Dashboard(ctx, fc.Args["from"].(*time.Time), fc.Args["to"].(*time.Time))
+			return ec.resolvers.Query().Dashboard(ctx, fc.Args["from"].(*time.Time), fc.Args["to"].(*time.Time), fc.Args["offsetMinutes"].(*int))
 		},
 		nil,
 		ec.marshalNDashboard2ᚖgithubᚗcomᚋHassanᚑKreateStudioᚋITᚑProjectᚑBackendᚋsrcᚋgraphqlᚐDashboard,

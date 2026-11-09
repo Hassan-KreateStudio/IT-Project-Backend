@@ -41,14 +41,16 @@ func New(
 	}
 }
 
-func (s *Service) OwnDashboard(ctx context.Context, viewer *authcontracts.User, from, to *time.Time) (*contracts.Dashboard, error) {
+// OwnDashboard buckets by the viewer's own clock: offsetMinutes is their UTC
+// offset, so a reading at 23:30 lands on the day they call today.
+func (s *Service) OwnDashboard(ctx context.Context, viewer *authcontracts.User, from, to *time.Time, offsetMinutes int) (*contracts.Dashboard, error) {
 	if viewer == nil {
 		return nil, apperrors.New("unauthorized", http.StatusUnauthorized)
 	}
 	if viewer.Role != authcontracts.RolePatient {
 		return nil, apperrors.New("forbidden", http.StatusForbidden)
 	}
-	return s.build(ctx, viewer.ID, from, to)
+	return s.build(ctx, viewer.ID, from, to, offsetMinutes)
 }
 
 func (s *Service) PatientDashboard(ctx context.Context, viewer *authcontracts.User, patientID string, from, to *time.Time) (*contracts.Dashboard, error) {
@@ -58,10 +60,10 @@ func (s *Service) PatientDashboard(ctx context.Context, viewer *authcontracts.Us
 	if err := s.caregiver.AssertCanView(ctx, viewer, patientID); err != nil {
 		return nil, err
 	}
-	return s.build(ctx, patientID, from, to)
+	return s.build(ctx, patientID, from, to, 0)
 }
 
-func (s *Service) build(ctx context.Context, patientID string, fromPtr, toPtr *time.Time) (*contracts.Dashboard, error) {
+func (s *Service) build(ctx context.Context, patientID string, fromPtr, toPtr *time.Time, offsetMinutes int) (*contracts.Dashboard, error) {
 	patient, err := s.patients.Get(ctx, patientID)
 	if err != nil {
 		return nil, err
@@ -88,8 +90,9 @@ func (s *Service) build(ctx context.Context, patientID string, fromPtr, toPtr *t
 		return nil, err
 	}
 
-	activityTrends, summary := rollupActivity(activities)
-	glucoseTrends, avgGlucose, glucoseCount := rollupGlucose(readings)
+	loc := time.FixedZone("local", offsetMinutes*60)
+	activityTrends, summary := rollupActivity(activities, loc)
+	glucoseTrends, avgGlucose, glucoseCount := rollupGlucose(readings, loc)
 	summary.AverageGlucose = avgGlucose
 	summary.GlucoseReadingCount = glucoseCount
 
@@ -112,14 +115,14 @@ type dayActivity struct {
 	hrCount   int
 }
 
-func rollupActivity(records []*activitycontracts.ActivityRecord) ([]contracts.ActivityTrend, contracts.DashboardSummary) {
+func rollupActivity(records []*activitycontracts.ActivityRecord, loc *time.Location) ([]contracts.ActivityTrend, contracts.DashboardSummary) {
 	buckets := map[string]*dayActivity{}
 	summary := contracts.DashboardSummary{}
 	hrSum := 0
 	hrCount := 0
 
 	for _, record := range records {
-		key := record.RecordedAt.UTC().Format("2006-01-02")
+		key := record.RecordedAt.In(loc).Format("2006-01-02")
 		day, ok := buckets[key]
 		if !ok {
 			day = &dayActivity{}
@@ -169,7 +172,7 @@ func rollupActivity(records []*activitycontracts.ActivityRecord) ([]contracts.Ac
 	return trends, summary
 }
 
-func rollupGlucose(readings []*glucosecontracts.GlucoseReading) ([]contracts.GlucoseTrend, *float64, int) {
+func rollupGlucose(readings []*glucosecontracts.GlucoseReading, loc *time.Location) ([]contracts.GlucoseTrend, *float64, int) {
 	type dayGlucose struct {
 		sum   float64
 		count int
@@ -179,7 +182,7 @@ func rollupGlucose(readings []*glucosecontracts.GlucoseReading) ([]contracts.Glu
 	total := 0.0
 
 	for _, reading := range readings {
-		key := reading.RecordedAt.UTC().Format("2006-01-02")
+		key := reading.RecordedAt.In(loc).Format("2006-01-02")
 		day, ok := buckets[key]
 		if !ok {
 			day = &dayGlucose{}

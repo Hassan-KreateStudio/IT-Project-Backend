@@ -245,12 +245,16 @@ func (r *queryResolver) Caregivers(ctx context.Context) ([]*User, error) {
 }
 
 // Dashboard is the resolver for the dashboard field.
-func (r *queryResolver) Dashboard(ctx context.Context, from *time.Time, to *time.Time) (*Dashboard, error) {
+func (r *queryResolver) Dashboard(ctx context.Context, from *time.Time, to *time.Time, offsetMinutes *int) (*Dashboard, error) {
 	user, err := requireUser(ctx)
 	if err != nil {
 		return nil, gqlErr(err)
 	}
-	dashboard, err := r.Analysis.OwnDashboard(ctx, user, from, to)
+	offset := 0
+	if offsetMinutes != nil {
+		offset = *offsetMinutes
+	}
+	dashboard, err := r.Analysis.OwnDashboard(ctx, user, from, to, offset)
 	if err != nil {
 		return nil, gqlErr(err)
 	}
