@@ -3,7 +3,7 @@ const COLORS = {
   Day: '#FFFFFF',
   Steps: '#FF3DAB',
   HeartRate: '#3DFFE7',
-  ActiveMinutes: '#FFB020',
+  ActiveMinutes: '#9B7BFF',
   Sedentary: '#8A8A8A',
   GlucoseReading: '#4D7CFF'
 };
@@ -13,7 +13,6 @@ const statusEl = document.getElementById('status');
 const panelEl = document.getElementById('panel');
 const crumbEl = document.getElementById('crumb');
 const noteEl = document.getElementById('note');
-const searchEl = document.getElementById('search');
 
 const state = {
   graph: null,
@@ -28,8 +27,15 @@ const outEdges = new Map();
 const inEdges = new Map();
 
 let cy = null;
+// true while replaying history, so a navigation does not push a new entry
+let replaying = false;
 
 init();
+window.addEventListener('popstate', () => {
+  replaying = true;
+  openFromHash();
+  replaying = false;
+});
 
 async function init() {
   bindUI();
@@ -38,12 +44,20 @@ async function init() {
     const payload = await response.json();
     state.graph = payload;
     index(payload);
+    const keyUser = document.getElementById('keyUser');
+    if (keyUser) keyUser.textContent = userName();
     statusEl.textContent = `${payload.meta.nodeCount} nodes · ${payload.meta.edgeCount} edges`
       + (payload.meta.truncated ? ` · capped at ${payload.meta.limit}` : '');
     openFromHash();
   } catch (error) {
     statusEl.textContent = 'failed: ' + error.message;
   }
+}
+
+function remember(hash) {
+  if (replaying) return;
+  if (location.hash === hash) return;
+  history.pushState(null, '', hash);
 }
 
 function openFromHash() {
@@ -85,8 +99,8 @@ function renderOverview() {
   state.view = 'overview';
   state.day = null;
   state.reading = null;
-  history.replaceState(null, '', '#overview');
-  crumb(['You']);
+  remember('#overview');
+  crumb([userName()]);
 
   const days = dayNodes();
   const elements = [];
@@ -146,7 +160,7 @@ function renderOverview() {
     style: [
       { selector: 'node', style: { label: '', width: 9, height: 9 } },
       { selector: 'node[label="Day"]', style: { shape: 'ellipse', width: 13, height: 13 } },
-      { selector: 'node[label="GlucoseReading"]', style: { width: 6, height: 6 } },
+      { selector: 'node[label="GlucoseReading"]', style: { width: 7, height: 7, shape: 'diamond' } },
       { selector: 'node[label="Steps"], node[label="HeartRate"], node[label="ActiveMinutes"], node[label="Sedentary"]', style: { width: 6, height: 6 } },
       { selector: 'node[label="User"]', style: { width: 26, height: 26 } },
       { selector: 'edge', style: { width: 0.5, opacity: 0.35 } }
@@ -166,17 +180,17 @@ function renderDay(dayId) {
   state.reading = null;
   const day = node(dayId);
   if (!day) return renderOverview();
-  history.replaceState(null, '', '#day=' + (day.props.date || ''));
+  remember('#day=' + (day.props.date || ''));
 
   const label = shortDate(day.props.date);
-  crumb(['You', label]);
+  crumb([userName(), label]);
 
   const elements = [cell(day)];
   const positions = { [day.id]: { x: 0, y: 0 } };
 
   const rootId = state.graph.nodes.find(n => n.label === 'User')?.id;
   if (rootId) {
-    elements.push(cell(node(rootId)));
+    elements.push(cell(node(rootId), userName()));
     positions[rootId] = { x: -330, y: 0 };
     elements.push(link(rootId, day.id));
   }
@@ -240,9 +254,9 @@ function renderReading(readingId) {
   state.view = 'reading';
   state.day = parent.id;
   state.reading = readingId;
-  history.replaceState(null, '', '#reading=' + readingId);
+  remember('#reading=' + readingId);
 
-  crumb(['You', shortDate(parent.props.date), `${time(reading)} · ${value(reading)}`]);
+  crumb([userName(), shortDate(parent.props.date), `${time(reading)} · ${value(reading)}`]);
 
   const elements = [cell(reading, `${value(reading)}\n${time(reading)}`)];
   const positions = { [reading.id]: { x: 0, y: 0 } };
@@ -253,7 +267,7 @@ function renderReading(readingId) {
 
   const rootId = state.graph.nodes.find(n => n.label === 'User')?.id;
   if (rootId) {
-    elements.push(cell(node(rootId)));
+    elements.push(cell(node(rootId), userName()));
     positions[rootId] = { x: -520, y: 0 };
     elements.push(link(rootId, parent.id));
   }
@@ -435,7 +449,7 @@ function showReadingPanel(reading, parent) {
     <div class="stat"><span>User</span><span>${userInitials()}</span></div>`;
 }
 
-// ---------- filter, search, crumb ----------
+// ---------- filter, crumb ----------
 
 function applyFilter() {
   if (!cy) return;
@@ -474,15 +488,6 @@ function bindUI() {
   document.getElementById('f-glucose').addEventListener('click', () => setFilter('glucose'));
   document.getElementById('f-high').addEventListener('click', () => setFilter('high'));
 
-  searchEl.addEventListener('keydown', event => {
-    if (event.key !== 'Enter') return;
-    const query = searchEl.value.trim().toLowerCase();
-    if (!query) return;
-    const match = dayNodes().find(day => (day.props.date || '').includes(query)
-      || shortDate(day.props.date).toLowerCase() === query);
-    if (match) renderDay(match.id);
-    else flash('No day matches “' + searchEl.value + '”');
-  });
 }
 
 function setFilter(kind) {
@@ -496,24 +501,19 @@ function setFilter(kind) {
 function crumb(parts) {
   crumbEl.innerHTML = parts.map((part, index) => {
     const isLast = index === parts.length - 1;
-    const label = isLast ? `<b>${part}</b>` : `<span data-crumb="${index}">${part}</span>`;
-    return label;
+    return isLast ? `<b>${part}</b>` : `<span data-crumb="${index}">${part}</span>`;
   }).join(' › ');
 
   crumbEl.querySelectorAll('[data-crumb]').forEach(span => {
     span.addEventListener('click', () => {
       const index = Number(span.dataset.crumb);
-      if (index === 0 || state.view === 'reading') renderDay(state.day);
-      else renderOverview();
+      // first crumb is always the overview, the second is the day
+      if (index === 0) renderOverview();
+      else if (state.view === 'reading') renderDay(state.day);
     });
   });
 }
 
-function flash(message) {
-  noteEl.textContent = message;
-  noteEl.style.opacity = 1;
-  setTimeout(() => { noteEl.style.opacity = 0; }, 2400);
-}
 
 // ---------- formatting ----------
 
@@ -573,6 +573,10 @@ function metricValue(metric) {
   if (metric.label === 'Sedentary') return `${props.minutes ?? 0} min`;
   if (props.intensity) return props.intensity;
   return '—';
+}
+
+function userName() {
+  return state.graph.nodes.find(n => n.label === 'User')?.props.displayName || 'You';
 }
 
 function userInitials() {

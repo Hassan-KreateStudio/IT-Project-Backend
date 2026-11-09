@@ -151,8 +151,10 @@ func convertNode(n neo4j.Node, id string) node {
 			hidden = append(hidden, key)
 			continue
 		case "displayname":
+			// the patient's own name is shown; only contact details and
+			// credentials are withheld
 			props["initials"] = initials(fmt.Sprint(value))
-			hidden = append(hidden, key)
+			props[key] = value
 			continue
 		}
 		props[key] = normalise(value)

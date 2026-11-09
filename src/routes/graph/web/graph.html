@@ -112,12 +112,6 @@
 
   .left{ position:relative; flex:1; min-width:0; }
   #cy{ position:absolute; inset:0; }
-  .search{
-    flex:1; max-width:360px; background:#141414; border:1px solid #242424;
-    border-radius:10px; padding:9px 13px; font-size:13px; color:#fff;
-    font-family:'Outfit',sans-serif; outline:none;
-  }
-  .search::placeholder{ color:#6E6E6E; }
   .chip{
     background:none; border:1px solid #2a2a2a; border-radius:999px;
     padding:7px 11px; font-family:'Outfit',sans-serif; font-size:11px;
@@ -151,12 +145,23 @@
   .reading .s{ font-size:11px; color:#6E6E6E; margin-left:auto; }
   .stat{ display:flex; justify-content:space-between; font-size:12px; padding:5px 0; }
   .stat span:first-child{ color:#6E6E6E; }
+
+  .key{
+    position:absolute; left:24px; bottom:20px; width:200px;
+    background:rgba(20,20,20,0.94); border:1px solid #262626; border-radius:14px;
+    padding:13px 14px; backdrop-filter:blur(10px);
+  }
+  .keyTitle{ font-family:'Bricolage'; font-weight:800; font-size:12px; color:#fff; margin-bottom:8px; }
+  .keyGroup{ font-size:9px; letter-spacing:1.5px; font-weight:700; text-transform:uppercase; color:#6E6E6E; margin:10px 0 6px; }
+  .keyRow{ display:flex; align-items:center; gap:8px; font-size:11px; color:#bdbdbd; padding:2px 0; }
+  .keyRow .dot{ width:9px; height:9px; border-radius:50%; flex:0 0 9px; }
+  .keyRow .diamond{ width:9px; height:9px; transform:rotate(45deg); flex:0 0 9px; }
+  .keyHint{ font-size:10px; color:#6E6E6E; margin-top:10px; line-height:1.4; }
 </style>
 </head>
 <body>
   <header>
-    <h1>Graph</h1>
-    <input class="search" id="search" placeholder="Search a day, a value, a date…" autocomplete="off">
+    <h1>Graph Analysis</h1>
     <button class="chip on" id="f-all">90 days</button>
     <button class="chip" id="f-glucose">Glucose only</button>
     <button class="chip" id="f-high">High days</button>
@@ -167,6 +172,21 @@
     <div class="left">
       <div id="cy"></div>
       <div class="note" id="note"></div>
+      <div class="key" id="key">
+        <div class="keyTitle">Key</div>
+        <div class="keyGroup">Nodes</div>
+        <div class="keyRow"><span class="dot" style="background:#D8FF3C"></span><span id="keyUser">You</span></div>
+        <div class="keyRow"><span class="dot" style="background:#FFFFFF"></span>Day</div>
+        <div class="keyRow"><span class="dot" style="background:#FF3DAB"></span>Steps</div>
+        <div class="keyRow"><span class="dot" style="background:#3DFFE7"></span>Heart rate</div>
+        <div class="keyRow"><span class="dot" style="background:#9B7BFF"></span>Active minutes</div>
+        <div class="keyRow"><span class="dot" style="background:#8A8A8A"></span>Sedentary</div>
+        <div class="keyGroup">Readings (diamond)</div>
+        <div class="keyRow"><span class="diamond" style="background:#4D7CFF"></span>In range 70–180</div>
+        <div class="keyRow"><span class="diamond" style="background:#FFB020"></span>High, over 180</div>
+        <div class="keyRow"><span class="diamond" style="background:#FF4D3A"></span>Low, under 70</div>
+        <div class="keyHint">Click a day to open it, then a reading.</div>
+      </div>
     </div>
     <aside class="panel" id="panel"></aside>
   </main>
@@ -175,14 +195,7 @@
     <span class="accent">●</span>
     <span id="status">loading…</span>
     <span class="spacer"></span>
-    <span class="legend">
-      <span><i style="background:#FFFFFF"></i>Day</span>
-      <span><i style="background:#FF3DAB"></i>Steps</span>
-      <span><i style="background:#3DFFE7"></i>Heart</span>
-      <span><i style="background:#FFB020"></i>Active / high</span>
-      <span><i style="background:#4D7CFF"></i>Glucose</span>
-      <span><i style="background:#FF4D3A"></i>Low</span>
-    </span>
+
     <span>IT Project</span>
   </footer>
 
