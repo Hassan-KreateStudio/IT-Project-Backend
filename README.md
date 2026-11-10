@@ -21,6 +21,10 @@ Go GraphQL API for graph-based analysis of Apple Watch physical activity data an
 
 Aura + production JWT stay in the Render dashboard. Do not put them in `.env`.
 
+`CORS_ALLOWED_ORIGINS` is a comma-separated list of browser origins allowed to call the API. When it is unset, the allow-list is `https://it-project-backend-aldq.onrender.com` plus any `localhost`, `127.0.0.1`, or `::1` origin so local web clients work. Setting the variable replaces that default: include the Render origin again if browsers should still be able to call the deployed API.
+
+The iOS app is native. It does not send an `Origin` header and does not depend on CORS, so this list does not change its API calls. Requests from an origin that is not on the list still reach the server; a browser simply cannot read the response.
+
 ## Run locally
 
 ```sh
@@ -41,6 +45,12 @@ python3 src/domains/analysis/tests/run.py
 ```
 
 `make run` uses the same `.env` and talks to Neo4j on `bolt://localhost:7687`.
+
+## Graph explorer
+
+`/graph` and `/graph/data` are scoped to one patient. The data endpoint stays public (no auth) for the single-user demo. Pass `?user=` with that patient's id or email (`userId`, `id`, and `email` are aliases).
+
+With no parameter, a database that has one patient uses that patient. If several patient accounts exist but only one of them has day nodes, that patient is used. If more than one patient has days, the request asks for `user` instead of correlating every patient's days together. Emails are not included in the payload.
 
 ## GraphQL
 
@@ -70,4 +80,6 @@ make render-create
 make render-deploy
 ```
 
-On Render, set a **different** `JWT_SECRET` plus Aura `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `NEO4J_DATABASE=neo4j`, and `REDIS_URL`. Health check: `/ping`.
+On Render, set a **different** `JWT_SECRET` plus Aura `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `NEO4J_DATABASE=neo4j`, and `REDIS_URL`. `CORS_ALLOWED_ORIGINS` is optional; leave it unset to keep the default allow-list (this service's origin, plus localhost for development). Health check: `/ping`.
+
+Deploys are image pulls (`make render-deploy`), not a Git push. This repo has no `render.yaml` and no GitHub Actions workflow, so merging to `main` does not by itself deploy.

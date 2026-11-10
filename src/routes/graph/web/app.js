@@ -2,6 +2,7 @@ import {
   bandColor,
   bandOf,
   bandText,
+  describeP,
   formatValue,
   longDate,
   prepare,
@@ -44,7 +45,7 @@ init();
 
 async function init() {
   try {
-    const payload = window.__GRAPH_DATA__ || (await (await fetch("data")).json());
+    const payload = window.__GRAPH_DATA__ || (await loadGraph());
     state.model = prepare(payload);
     renderGraph();
     bindChrome();
@@ -62,19 +63,38 @@ async function init() {
 
 /* ------------------------------------------------------------------ format */
 
+function dataURL() {
+  const path = window.location.pathname;
+  const at = path.indexOf("/graph");
+  const root = at >= 0 ? path.slice(0, at + "/graph".length) : "";
+  const url = new URL(`${root}/data`, window.location.origin);
+  const params = new URLSearchParams(window.location.search);
+  const user = params.get("user") || params.get("userId") || params.get("id") || params.get("email");
+  if (user) url.searchParams.set("user", user);
+  return url.pathname + url.search;
+}
+
+async function loadGraph() {
+  const response = await fetch(dataURL());
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error((body && body.error) || `request failed (${response.status})`);
+  }
+  return body;
+}
+
+function pMarkup(value) {
+  const described = describeP(value);
+  const cls = described.significant ? "p-value is-sig" : described.known ? "p-value is-ns" : "p-value";
+  return `<span class="${cls}">${esc(described.text)}</span>`;
+}
+
 function esc(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-function fmtP(value) {
-  if (value == null || !Number.isFinite(value)) return "—";
-  if (value < 0.001) return "p < .001";
-  if (value < 0.01) return "p < .01";
-  return "p = " + value.toFixed(3);
 }
 
 function signed(value, digits = 2) {
@@ -1020,13 +1040,14 @@ function renderOverviewPanel() {
   const model = state.model;
   const readings = model.days.reduce((sum, day) => sum + day.readings.length, 0);
   const inRange = model.days.reduce((sum, day) => sum + day.inRange, 0);
+  const inRangePct = readings ? Math.round((inRange / readings) * 100) : 0;
   const top = model.edgeList.slice(0, 7);
   const active = model.edgeList.filter((edge) => edge.kind === "next").length;
   const strong = model.edgeList.filter((edge) => edge.strength >= 0.3).length;
   panelEl.innerHTML = `
     <div class="eyebrow"><span>The whole graph</span><span class="live"><i></i>90-day window</span></div>
     <div class="hero-stat"><span class="num">${model.days.length}</span><span class="unit">days, every one connected</span></div>
-    <p class="panel-sub"><b>${readings}</b> glucose readings · <b>${inRange}</b> in range · <b>${model.edges.length}</b> stored relationships</p>
+    <p class="panel-sub"><b>${readings}</b> glucose readings · <b>${inRange}</b> in range (${inRangePct}%, 70–180) · <b>${model.edges.length}</b> stored relationships</p>
     <div class="stat-grid">
       <div><b>${model.variables.length}</b><span>variables</span></div>
       <div><b>${model.sameEdges.length}</b><span>same-day links</span></div>
@@ -1034,7 +1055,7 @@ function renderOverviewPanel() {
       <!-- <div><b>${strong}</b><span>moderate or stronger</span></div> -->
     </div>
     <div class="section-head">Derived relationships <span>whole window</span></div>
-    <p class="method">Every link below is computed from all complete days in the payload. It is an analysis overlay, not a stored edge.</p>
+    <p class="method">Every link below is computed from this patient's complete days. It is an analysis overlay, not a stored edge.</p>
     ${model.variableByKey.Intensity.constant ? '<p class="method">Intensity is constant in this window (all MODERATE), so it has no variance and no derived links.</p>' : ""}
     ${top.map((edge) => edgeRow(edge, true)).join("")}
     <div class="section-head">Why this is a graph</div>
@@ -1166,7 +1187,7 @@ function renderEdgePanel(edge) {
     <div class="eyebrow"><span>Derived relationship</span><span class="live"><i style="background:${edgeColor(edge)}"></i>${edge.kind === "next" ? "next day" : "same day"}</span></div>
     <h2 class="var-title">${esc(source.short)} <span class="arrow">${edge.kind === "next" ? "→" : "↔"}</span> ${esc(target.short)}</h2>
     <div class="hero-stat"><span class="num" style="color:${edgeColor(edge)}">${signed(edge.r)}</span><span class="unit">Pearson r <!-- · ${strengthLabel(edge.r)} --></span></div>
-    <p class="date-sub">${esc(edgeSentence(edge))} · n = ${edge.n} <!-- · ${fmtP(edge.p)} --></p>
+    <p class="date-sub">${esc(edgeSentence(edge))} · n = ${edge.n} · ${pMarkup(edge.p)}</p>
     <div class="method-note full">This is computed across the entire window, not from the selected day. ${edge.kind === "next" ? "The pair is day t → day t+1 (89 transitions)." : "The pair is the same day (90 days)."}</div>
     <div class="section-head">Scatter <span>whole window</span></div>
     ${scatterSvg(edge, source, target)}
@@ -1174,7 +1195,7 @@ function renderEdgePanel(edge) {
     ${evidence.map((item) => `<div class="evidence-row" data-day="${item.sourceIndex}">
       <span class="date">${esc(item.sourceLabel)}${edge.kind === "next" ? ` <span class="mut">→</span> ${esc(item.targetLabel)}` : ""}</span>
       <span class="vals"><b style="color:${source.color}">${esc(formatValue(source, item.sourceValue))}</b> <span class="mut">·</span> <b style="color:${target.color}">${esc(formatValue(target, item.targetValue))}</b></span>
-      <!-- <span class="z">${signed(item.zx, 1)} · ${signed(item.zy, 1)}</span> -->
+      <span class="z">z-scores ${signed(item.zx, 1)} · ${signed(item.zy, 1)}</span>
     </div>`).join("")}
     <div class="section-head">Path shape</div>
     <div class="path-shape"><span style="color:${source.color}">${esc(source.short)}</span><span class="mut">→</span><span>day${edge.kind === "next" ? " t+1" : ""}</span><span class="mut">→</span><span style="color:${target.color}">${esc(target.short)}</span></div>
@@ -1336,7 +1357,7 @@ function showEdgeTooltip(event, edge) {
   if (!modelEdge) return;
   const source = state.model.variableByKey[modelEdge.source];
   const target = state.model.variableByKey[modelEdge.target];
-  showTipAt(event, `<b>${esc(edgeTitle(modelEdge))}</b><span>${modelEdge.kind === "next" ? "next-day" : "same-day"} r ${signed(modelEdge.r)} · n ${modelEdge.n}</span>`);
+  showTipAt(event, `<b>${esc(edgeTitle(modelEdge))}</b><span>${modelEdge.kind === "next" ? "next-day" : "same-day"} r ${signed(modelEdge.r)} · n ${modelEdge.n} · ${esc(describeP(modelEdge.p).text)}</span>`);
 }
 
 function showTipAt(event, html) {

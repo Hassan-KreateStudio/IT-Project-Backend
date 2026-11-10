@@ -3,8 +3,10 @@ package graph
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -37,15 +39,18 @@ type payload struct {
 	Nodes []node `json:"nodes"`
 	Edges []edge `json:"edges"`
 	Meta  struct {
-		NodeCount int  `json:"nodeCount"`
-		EdgeCount int  `json:"edgeCount"`
-		Limit     int  `json:"limit"`
-		Truncated bool `json:"truncated"`
+		NodeCount int    `json:"nodeCount"`
+		EdgeCount int    `json:"edgeCount"`
+		Limit     int    `json:"limit"`
+		Truncated bool   `json:"truncated"`
+		PatientID string `json:"patientId,omitempty"`
 	} `json:"meta"`
 }
 
-// Data returns the whole graph, capped and stripped. One query: collect the
-// nodes, then only the relationships whose endpoints both survived the cap.
+// Data returns one patient's graph, capped and stripped. The page is public
+// for the single-user demo, but correlations must not mix Day nodes from
+// different people. Pass ?user= with an id or an email to choose; with no
+// parameter the only patient (or the only patient who has days) is used.
 func Data(client *neo4jdb.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		limit := defaultLimit
@@ -56,32 +61,28 @@ func Data(client *neo4jdb.Client) http.HandlerFunc {
 		}
 
 		value, err := client.ExecuteRead(r.Context(), func(tx neo4j.ManagedTransaction) (any, error) {
-			res, err := tx.Run(r.Context(), `
-				MATCH (n)
-				WHERE NOT n:Migration
-				WITH n ORDER BY elementId(n) LIMIT $limit
-				WITH collect(n) AS nodes
-				UNWIND nodes AS a
-				OPTIONAL MATCH (a)-[rel]->(b)
-				WHERE b IN nodes
-				WITH nodes, collect(DISTINCT rel) AS rels
-				RETURN nodes, rels
-			`, map[string]any{"limit": limit})
+			patients, err := listPatients(r.Context(), tx)
 			if err != nil {
 				return nil, err
 			}
-			if !res.Next(r.Context()) {
-				return nil, res.Err()
+			patientID, err := selectPatient(patients, userKey(r))
+			if err != nil {
+				return nil, err
 			}
-
-			record := res.Record()
-			rawNodes, _ := record.Get("nodes")
-			rawRels, _ := record.Get("rels")
-
-			return build(rawNodes, rawRels, limit), nil
+			if patientID == "" {
+				return emptyPayload(limit), nil
+			}
+			return loadPatient(r.Context(), tx, patientID, limit)
 		})
 		if err != nil {
-			http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusInternalServerError)
+			status := http.StatusInternalServerError
+			switch {
+			case errors.Is(err, errPatientNotFound):
+				status = http.StatusNotFound
+			case errors.Is(err, errMultiplePatients):
+				status = http.StatusBadRequest
+			}
+			writeError(w, status, err.Error())
 			return
 		}
 
@@ -91,11 +92,105 @@ func Data(client *neo4jdb.Client) http.HandlerFunc {
 	}
 }
 
+func listPatients(ctx context.Context, tx neo4j.ManagedTransaction) ([]patientRef, error) {
+	res, err := tx.Run(ctx, `
+		MATCH (u:User)
+		WHERE u.role = 'PATIENT'
+		OPTIONAL MATCH (u)-[:HAS_DAY]->(d:Day)
+		RETURN u.id AS id, u.email AS email, count(d) AS days
+	`, nil)
+	if err != nil {
+		return nil, err
+	}
+	patients := make([]patientRef, 0)
+	for res.Next(ctx) {
+		record := res.Record()
+		id, _ := record.Get("id")
+		email, _ := record.Get("email")
+		days, _ := record.Get("days")
+		patientID, _ := id.(string)
+		if patientID == "" {
+			continue
+		}
+		emailText, _ := email.(string)
+		patients = append(patients, patientRef{
+			ID:    patientID,
+			Email: strings.TrimSpace(emailText),
+			Days:  neo4jdb.AsInt(days),
+		})
+	}
+	return patients, res.Err()
+}
+
+// loadPatient returns the patient and the nodes within two hops: days and
+// their metrics, the profile, and generated readings. Other users are not
+// followed, so a caregiver link cannot pull a second patient into the window.
+func loadPatient(ctx context.Context, tx neo4j.ManagedTransaction, patientID string, limit int) (payload, error) {
+	res, err := tx.Run(ctx, `
+		MATCH (u:User {id: $patientId, role: 'PATIENT'})
+		OPTIONAL MATCH (u)-[*1..2]->(n)
+		WHERE n IS NULL OR (NOT n:User AND NOT n:Migration)
+		WITH u, [x IN collect(DISTINCT n) WHERE x IS NOT NULL AND NOT x:User AND NOT x:Migration] AS related
+		WITH ([u] + related) AS allNodes
+		WITH allNodes[0..$limit] AS nodes, size(allNodes) > $limit AS truncated
+		UNWIND nodes AS a
+		OPTIONAL MATCH (a)-[rel]->(b)
+		WHERE b IN nodes
+		WITH nodes, truncated, [r IN collect(DISTINCT rel) WHERE r IS NOT NULL] AS rels
+		RETURN nodes, rels, truncated
+	`, map[string]any{"patientId": patientID, "limit": limit})
+	if err != nil {
+		return payload{}, err
+	}
+	if !res.Next(ctx) {
+		if err := res.Err(); err != nil {
+			return payload{}, err
+		}
+		return emptyPayload(limit), nil
+	}
+	record := res.Record()
+	rawNodes, _ := record.Get("nodes")
+	rawRels, _ := record.Get("rels")
+	truncated, _ := record.Get("truncated")
+	out := build(rawNodes, rawRels, limit)
+	if flag, ok := truncated.(bool); ok {
+		out.Meta.Truncated = flag
+	}
+	out.Meta.PatientID = patientID
+	return out, res.Err()
+}
+
+// asSlice accepts the []any lists the driver usually returns, and any other
+// slice shape, so a typed node list does not collapse the payload to empty.
+func asSlice(value any) []any {
+	if value == nil {
+		return nil
+	}
+	if list, ok := value.([]any); ok {
+		return list
+	}
+	rv := reflect.ValueOf(value)
+	if !rv.IsValid() || rv.Kind() != reflect.Slice {
+		return nil
+	}
+	out := make([]any, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		out[i] = rv.Index(i).Interface()
+	}
+	return out
+}
+
+func emptyPayload(limit int) payload {
+	out := payload{Nodes: []node{}, Edges: []edge{}}
+	out.Meta.Limit = limit
+	return out
+}
+
 func build(rawNodes, rawRels any, limit int) payload {
 	out := payload{Nodes: make([]node, 0), Edges: make([]edge, 0)}
 	out.Meta.Limit = limit
 
-	nodeList, _ := rawNodes.([]any)
+	nodeList := asSlice(rawNodes)
 	ids := make(map[string]bool, len(nodeList))
 
 	for _, entry := range nodeList {
@@ -108,7 +203,7 @@ func build(rawNodes, rawRels any, limit int) payload {
 		out.Nodes = append(out.Nodes, convertNode(n, id))
 	}
 
-	relList, _ := rawRels.([]any)
+	relList := asSlice(rawRels)
 	for _, entry := range relList {
 		rel, ok := entry.(neo4j.Relationship)
 		if !ok {
@@ -202,4 +297,8 @@ func writeJSON(w http.ResponseWriter, value any) {
 	_ = encoder.Encode(value)
 }
 
-var _ = context.Background
+func writeError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
+}

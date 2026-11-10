@@ -53,6 +53,7 @@ render-create:
 	@echo ""
 	@echo "Next: Render dashboard → it-project-backend → Environment"
 	@echo "Add JWT_SECRET, NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, NEO4J_DATABASE=neo4j, REDIS_URL"
+	@echo "CORS_ALLOWED_ORIGINS is optional (default: this service's origin plus localhost)."
 	@echo "Do not set AUTH_DEBUG_CODES on Render. Add RESEND_API_KEY and MAIL_FROM when email is ready."
 	@echo "Copy the service id into .deploy.env as RENDER_SERVICE_ID, then make render-deploy."
 

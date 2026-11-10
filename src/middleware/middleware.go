@@ -20,8 +20,8 @@ func (w *statusWriter) WriteHeader(status int) {
 
 func Apply(app interface {
 	Use(middlewares ...func(http.Handler) http.Handler)
-}) {
-	app.Use(CORS)
+}, cors CORSPolicy) {
+	app.Use(cors.Handler)
 	app.Use(chimw.RequestID)
 	app.Use(requestLogger)
 }

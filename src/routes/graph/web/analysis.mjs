@@ -38,8 +38,9 @@ export const readingTime = (reading) => {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 };
 
+// Same bands as glucose/contracts.GlucoseBand: in range is 70–180 inclusive.
 export const bandOf = (value) => {
-  if (typeof value !== "number") return "unknown";
+  if (typeof value !== "number" || !Number.isFinite(value)) return "unknown";
   if (value < 70) return "low";
   if (value > 180) return "high";
   return "in";
@@ -57,9 +58,63 @@ const metricNumber = (node) => {
   return null;
 };
 
+// scopePayload keeps a single patient's nodes. A payload that still contains
+// several patients is refused so same-day and next-day correlations cannot
+// pair one person's Monday with someone else's Tuesday.
+export function scopePayload(payload) {
+  const nodes = payload?.nodes || [];
+  const edges = payload?.edges || [];
+  const meta = payload?.meta || {};
+  const days = nodes.filter((node) => node.label === "Day");
+  const owners = [...new Set(days.map((day) => day.props?.patientId).filter(Boolean))];
+  let patientId = String(meta.patientId || "").trim();
+  if (!patientId) {
+    if (owners.length === 1) {
+      patientId = owners[0];
+    } else if (owners.length === 0) {
+      const patients = nodes.filter((node) => node.label === "User" && String(node.props?.role || "").toUpperCase() === "PATIENT");
+      if (patients.length === 1) patientId = String(patients[0].props?.id || "");
+      else if (patients.length > 1) throw new Error("multiple patients; pass user as an id or email");
+    } else {
+      throw new Error("multiple patients; pass user as an id or email");
+    }
+  }
+  if (!patientId) return { ...payload, nodes, edges, meta };
+
+  const keep = new Set();
+  for (const node of nodes) {
+    if (node.props?.patientId === patientId) keep.add(node.id);
+    if (node.label === "User" && node.props?.id === patientId) keep.add(node.id);
+  }
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  for (let pass = 0; pass < 4; pass++) {
+    for (const edge of edges) {
+      if (!keep.has(edge.start) || keep.has(edge.end)) continue;
+      const next = byId.get(edge.end);
+      if (!next || next.label === "User") continue;
+      if (next.props?.patientId && next.props.patientId !== patientId) continue;
+      keep.add(next.id);
+    }
+  }
+  const scopedNodes = nodes.filter((node) => keep.has(node.id));
+  const scopedEdges = edges.filter((edge) => keep.has(edge.start) && keep.has(edge.end));
+  return {
+    ...payload,
+    nodes: scopedNodes,
+    edges: scopedEdges,
+    meta: {
+      ...meta,
+      patientId,
+      nodeCount: scopedNodes.length,
+      edgeCount: scopedEdges.length,
+    },
+  };
+}
+
 export function prepare(payload) {
-  const nodes = payload.nodes || [];
-  const edges = payload.edges || [];
+  const scoped = scopePayload(payload);
+  const nodes = scoped.nodes || [];
+  const edges = scoped.edges || [];
   const byId = new Map(nodes.map((node) => [node.id, node]));
   const out = new Map();
   const inn = new Map();
@@ -192,7 +247,7 @@ export function prepare(payload) {
   const edgeList = [...sameEdges, ...nextEdges].sort((a, b) => b.strength - a.strength);
 
   return {
-    payload,
+    payload: scoped,
     nodes,
     edges,
     byId,
@@ -208,7 +263,7 @@ export function prepare(payload) {
     nextEdges,
     edgeById,
     edgeList,
-    meta: payload.meta || {},
+    meta: scoped.meta || {},
   };
 }
 
@@ -312,6 +367,16 @@ export function formatValue(variable, value) {
   if (variable.key === "Steps") return Math.round(value).toLocaleString();
   if (variable.key === "Intensity") return value === 1 ? "Light" : value === 2 ? "Moderate" : value === 3 ? "Vigorous" : String(value);
   return `${Math.round(value)}`;
+}
+
+// describeP is the Fisher z test of a correlation, shown as a short label.
+// Significant means p < 0.05.
+export function describeP(value) {
+  if (value == null || !Number.isFinite(value)) return { text: "—", significant: false, known: false };
+  const significant = value < 0.05;
+  const figure = value < 0.001 ? "p < 0.001" : `p = ${String(Number(value.toFixed(3)))}`;
+  const verdict = significant ? "significant" : "not significant";
+  return { text: `${figure} (${verdict})`, significant, known: true };
 }
 
 export function strengthLabel(r) {
