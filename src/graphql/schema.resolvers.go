@@ -125,8 +125,8 @@ func (r *mutationResolver) SyncActivity(ctx context.Context, records []*Activity
 		return nil, gqlErr(err)
 	}
 
-	// A day that arrives without glucose gets a generated one, so the history
-	// screen and the chart are never empty after a backfill.
+	// A day that arrives without glucose gets three copied ShanghaiT2DM
+	// readings, so the history screen and the chart are never empty after a sync.
 	if r.Glucose != nil {
 		if _, err := r.Glucose.FillSynthetic(ctx, user.ID); err != nil {
 			log.Printf("synthetic glucose after sync failed for %s: %v", user.ID, err)

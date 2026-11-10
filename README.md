@@ -2,6 +2,8 @@
 
 Go GraphQL API for graph-based analysis of Apple Watch physical activity data and synthetic glucose input, used to support type 2 diabetes self-monitoring.
 
+Synthetic glucose is not a formula. A day with activity and no reading gets three copied values, flagged `synthetic: true`. Each value is a real ShanghaiT2DM continuous-glucose reading (Zhao et al., *Scientific Data* 10, 35, 2023, https://doi.org/10.1038/s41597-023-01940-7; data file https://doi.org/10.6084/m9.figshare.21600933.v5, CC BY 4.0), drawn at random from the same time of day. The lookup table is compiled into the binary. Clock hours, counts, and how to rebuild the table are in `src/domains/glucose/synthetic/README.md`.
+
 ## Stack
 
 - Language: Go
@@ -81,5 +83,7 @@ make render-deploy
 ```
 
 On Render, set a **different** `JWT_SECRET` plus Aura `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `NEO4J_DATABASE=neo4j`, and `REDIS_URL`. `CORS_ALLOWED_ORIGINS` is optional; leave it unset to keep the default allow-list (this service's origin, plus localhost for development). Health check: `/ping`.
+
+The ShanghaiT2DM lookup table is embedded in the API binary during `docker build`. `make render-deploy` does not need a new environment variable or a data file on the Render disk.
 
 Deploys are image pulls (`make render-deploy`), not a Git push. This repo has no `render.yaml` and no GitHub Actions workflow, so merging to `main` does not by itself deploy.
