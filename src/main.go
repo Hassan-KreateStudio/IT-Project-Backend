@@ -20,6 +20,7 @@ import (
 	caregiversvc "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/caregiver/services"
 	glucoserepo "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/repository"
 	glucosesvc "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/services"
+	glucosesynthetic "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/synthetic"
 	patientsvc "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/patient/services"
 	profilerepo "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/profile/repository"
 	profilesvc "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/profile/services"
@@ -36,7 +37,7 @@ import (
 func main() {
 	migrateOnly := flag.Bool("migrate-only", false, "run Neo4j migrations and exit")
 	backfillGlucose := flag.Bool("backfill-glucose", false, "generate synthetic glucose for days without a reading, then exit")
-	backfillSeed := flag.Int64("seed", 42, "seed for the synthetic glucose generator")
+	backfillSeed := flag.Int64("seed", glucosesynthetic.DefaultSeed, "seed for choosing which ShanghaiT2DM reading to copy")
 	backfillDryRun := flag.Bool("dry-run", false, "with -backfill-glucose, print the values without writing")
 	flag.Parse()
 

@@ -9,18 +9,11 @@ import (
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/synthetic"
 )
 
-// BackfillSynthetic gives every activity day without a reading three generated
-// ones, so the history screen and the daily average have something to work
-// with. Seeded, so the same seed reproduces the same numbers.
-//
-// ShanghaiT2DM on PhysioNet stores continuous glucose readings — mg/dL values sampled at roughly 15-minute intervals for about 100 type 2 patients over several days — and we did not ingest it:
-// nothing was downloaded or parsed, so no empirical parameter was fitted.
-// Instead we took its shape (fasting low in the morning, the day's peak after lunch, a smaller rise after dinner, occasional hyperglycaemic days) and paired it with representative type 2 CGM summary figures — 124 ± 18 at 07:30, 168 ± 30 at 13:00, 148 ± 26 at 20:30 mg/dL — hardcoded as synthetic.DailyProfile;
-// the generator then draws each day three Gaussian values around those means, with one shared day-level offset so a day's readings move together, an 8% chance of a whole day running high, everything clamped to 40–400, seeded for reproducibility,
-// and flagged synthetic: true in the graph — and crucially generated independently of that day's step count, so any activity–glucose correlation the analysis later finds is noise in the data rather than a relationship we planted.
-//
-// Values are drawn independently of each day's activity on purpose — see the
-// synthetic package. This is test data and is flagged as such in the graph.
+// BackfillSynthetic gives every activity day without a reading three copied
+// ShanghaiT2DM values, one per time-of-day slot, so the history screen and
+// the daily average have something to work with. The same seed copies the
+// same rows. Values do not depend on that day's step count, and each written
+// reading is flagged synthetic.
 func (r *Repository) BackfillSynthetic(ctx context.Context, seed int64, loc *time.Location, dryRun bool) (int, error) {
 	days, err := r.DaysWithoutGlucose(ctx)
 	if err != nil {
