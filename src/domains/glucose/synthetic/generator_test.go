@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/contracts"
 )
 
 func TestDayIsThreeReadingsInProfileOrder(t *testing.T) {
@@ -82,7 +84,7 @@ func TestMostReadingsLandInRange(t *testing.T) {
 		date := time.Date(2026, 1, 1, 0, 0, 0, 0, loc).AddDate(0, 0, day)
 		for _, reading := range Day(date, loc, rng) {
 			total++
-			if reading.Value >= 70 && reading.Value <= 180 {
+			if contracts.GlucoseBand(reading.Value) == "in" {
 				inRange++
 			}
 		}

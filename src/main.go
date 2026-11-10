@@ -116,7 +116,7 @@ func main() {
 	}
 
 	app := chi.NewRouter()
-	middleware.Apply(app)
+	middleware.Apply(app, middleware.NewCORSPolicy(cfg.CORSAllowedOrigins, cfg.CORSAllowLocalDev))
 	routes.Register(app, client, resolver, auth, cache)
 
 	server := &http.Server{

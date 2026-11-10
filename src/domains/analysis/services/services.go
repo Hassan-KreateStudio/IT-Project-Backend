@@ -230,11 +230,12 @@ func alertsFor(trends []contracts.ActivityTrend, readings []*glucosecontracts.Gl
 			lowSteps++
 		}
 	}
+	// 70 and 180 mg/dL are in range. High is only a reading above 180.
 	for _, reading := range readings {
-		switch {
-		case reading.Value >= 180:
+		switch glucosecontracts.GlucoseBand(reading.Value) {
+		case "high":
 			highGlucose++
-		case reading.Value > 0 && reading.Value < 70:
+		case "low":
 			lowGlucose++
 		}
 	}
