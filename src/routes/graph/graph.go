@@ -15,8 +15,9 @@ import (
 //go:embed web
 var assets embed.FS
 
-// Register serves the graph explorer at /graph. The page and its fonts are
-// embedded in the binary, so the Docker image stays self-contained.
+// Register serves the graph explorer at /graph. / is the simplified default
+// view. /advanced/ is the full relationship graph. Pages, scripts, and fonts
+// are embedded, so the Docker image stays self-contained.
 func Register(r chi.Router, client *neo4jdb.Client) {
 	web, err := fs.Sub(assets, "web")
 	if err != nil {
@@ -24,25 +25,50 @@ func Register(r chi.Router, client *neo4jdb.Client) {
 	}
 
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
+		if !strings.HasSuffix(req.URL.Path, "/") {
+			http.Redirect(w, req, slashURL(req), http.StatusPermanentRedirect)
+			return
+		}
+		serveAsset(w, web, "default.html")
+	})
+
+	// Canonical advanced URL has a trailing slash so relative script and font
+	// URLs in graph.html resolve under /graph/advanced/.
+	r.Get("/advanced", func(w http.ResponseWriter, req *http.Request) {
+		http.Redirect(w, req, slashURL(req), http.StatusPermanentRedirect)
+	})
+	r.Get("/advanced/", func(w http.ResponseWriter, req *http.Request) {
 		serveAsset(w, web, "graph.html")
 	})
 
 	r.Get("/data", Data(client))
 
-	r.Get("/cytoscape.min.js", func(w http.ResponseWriter, req *http.Request) {
+	mountAssets(r, web, "/")
+	mountAssets(r, web, "/advanced/")
+}
+
+func slashURL(req *http.Request) string {
+	target := strings.TrimRight(req.URL.Path, "/") + "/"
+	if req.URL.RawQuery != "" {
+		target += "?" + req.URL.RawQuery
+	}
+	return target
+}
+
+func mountAssets(r chi.Router, web fs.FS, prefix string) {
+	r.Get(prefix+"cytoscape.min.js", func(w http.ResponseWriter, req *http.Request) {
 		serveAsset(w, web, "cytoscape.min.js")
 	})
-
-	r.Get("/app.js", func(w http.ResponseWriter, req *http.Request) {
+	r.Get(prefix+"app.js", func(w http.ResponseWriter, req *http.Request) {
 		serveAsset(w, web, "app.js")
 	})
-
-	r.Get("/analysis.mjs", func(w http.ResponseWriter, req *http.Request) {
+	r.Get(prefix+"default.js", func(w http.ResponseWriter, req *http.Request) {
+		serveAsset(w, web, "default.js")
+	})
+	r.Get(prefix+"analysis.mjs", func(w http.ResponseWriter, req *http.Request) {
 		serveAsset(w, web, "analysis.mjs")
 	})
-
-	r.Get("/fonts/*", func(w http.ResponseWriter, req *http.Request) {
-		// chi keeps the full URL path; the wildcard is the reliable name.
+	r.Get(prefix+"fonts/*", func(w http.ResponseWriter, req *http.Request) {
 		name := strings.TrimPrefix(chi.URLParam(req, "*"), "/")
 		if name == "" || strings.Contains(name, "..") {
 			http.NotFound(w, req)

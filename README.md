@@ -50,7 +50,9 @@ python3 src/domains/analysis/tests/run.py
 
 ## Graph explorer
 
-`/graph` and `/graph/data` are scoped to one patient. Pass `?user=` with that patient's id or email (`userId`, `id`, and `email` are aliases).
+`/graph/` is the default view: steps, active minutes, intensity, sedentary time, and heart rate around glucose, one dot per day. Open a dot for that day's readings. `/graph/advanced/` is the full relationship graph. Links such as `#variable=`, `#day=`, `#edge=`, `#metric=`, and `#reading=` still open there, including when they are appended to `/graph/`. The default view's Advanced view button opens the full graph, and that page links back. Both pages load `/graph/data` and compute same-day correlations in the browser.
+
+`/graph/`, `/graph/advanced/`, and `/graph/data` are scoped to one patient. Pass `?user=` with that patient's id or email (`userId`, `id`, and `email` are aliases).
 
 Who can open it depends on `GRAPH_EXPLORER`:
 
@@ -94,7 +96,7 @@ make render-create
 make render-deploy
 ```
 
-On Render, set a **different** `JWT_SECRET` plus Aura `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `NEO4J_DATABASE=neo4j`, and `REDIS_URL`. `CORS_ALLOWED_ORIGINS` is optional; leave it unset to keep the default allow-list (this service's origin, plus localhost for development). Leave `GRAPH_EXPLORER` unset so `/graph` requires a bearer token against Aura, or set `GRAPH_EXPLORER=public` if the browser tool should stay open. Health check: `/ping`.
+On Render, set a **different** `JWT_SECRET` plus Aura `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `NEO4J_DATABASE=neo4j`, and `REDIS_URL`. `CORS_ALLOWED_ORIGINS` is optional; leave it unset to keep the default allow-list (this service's origin, plus localhost for development). Leave `GRAPH_EXPLORER` unset so `/graph` and `/graph/advanced/` require a bearer token against Aura, or set `GRAPH_EXPLORER=public` if the browser tool should stay open. Health check: `/ping`.
 
 The ShanghaiT2DM lookup table is embedded in the API binary during `docker build`. `make render-deploy` does not need a new environment variable or a data file on the Render disk.
 
