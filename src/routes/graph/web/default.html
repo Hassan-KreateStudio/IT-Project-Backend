@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Activity and glucose — IT Project</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%230A0A0A'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23FF3DAB'/%3E%3C/svg%3E">
+<script>
+  // Old advanced-view links were /graph/#day= and similar. The hash is not
+  // sent to the server, so forward those here before the default view paints.
+  (function () {
+    var advanced = ["variable", "day", "edge", "metric", "reading", "overview"];
+    function forward() {
+      var path = location.pathname;
+      if (path.indexOf("/advanced") >= 0) return;
+      var at = path.indexOf("/graph");
+      var root = at >= 0 ? path.slice(0, at + "/graph".length) : "";
+      var kind = "";
+      try {
+        kind = decodeURIComponent((location.hash.replace(/^#/, "").split("&")[0] || "").split("=")[0] || "");
+      } catch (e) { return; }
+      if (advanced.indexOf(kind) >= 0) {
+        location.replace(root + "/advanced/" + location.search + location.hash);
+      }
+    }
+    forward();
+    addEventListener("hashchange", forward);
+  })();
+</script>
+<style>
+  @font-face { font-family:'Bricolage'; src:url('fonts/BricolageGrotesque-ExtraBold.otf'); font-weight:800; font-display:swap; }
+  @font-face { font-family:'Outfit'; src:url('fonts/Outfit-Regular.otf'); font-weight:400; font-display:swap; }
+  @font-face { font-family:'Outfit'; src:url('fonts/Outfit-Medium.otf'); font-weight:500; font-display:swap; }
+  @font-face { font-family:'Outfit'; src:url('fonts/Outfit-Bold.otf'); font-weight:700; font-display:swap; }
+  :root{
+    --ink:#0A0A0A; --text:#F6F4F0; --second:#E2E2E2;
+    /* glucose state: same meaning as the iPhone app */
+    --in:#D8FF3C; --high:#FF4D3A; --low:#FFB020;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ min-height:100%; }
+  body{
+    background:
+      radial-gradient(900px 520px at 18% -8%, rgba(255,61,171,.06), transparent 65%),
+      radial-gradient(820px 500px at 92% 0%, rgba(61,255,231,.045), transparent 62%),
+      var(--ink);
+    color:var(--text); font-family:'Outfit',system-ui,sans-serif; font-size:20px;
+    -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; min-height:100vh;
+    overflow-x:auto; min-width:1180px;
+  }
+  .adv{ display:inline-flex; align-items:center; gap:10px; background:var(--text); color:var(--ink); text-decoration:none; font-weight:700; font-size:20px; padding:12px 24px; border-radius:999px; white-space:nowrap; }
+  .adv:hover{ background:#fff; }
+  .head{ display:flex; justify-content:space-between; align-items:flex-start; gap:40px; padding:26px 40px 0; }
+  h1{ font-family:'Bricolage'; font-weight:800; font-size:clamp(40px,3.7vw,60px); letter-spacing:-1.5px; line-height:1.02; max-width:14em; }
+  .right{ display:flex; align-items:flex-start; gap:28px; flex:0 0 auto; margin-left:auto; }
+  .who{ text-align:right; }
+  .who .n{ font-family:'Bricolage'; font-weight:800; font-size:40px; letter-spacing:-1px; line-height:1.05; }
+  .who .r{ font-size:20px; font-weight:500; color:var(--second); margin-top:6px; }
+  .empty{ display:none; flex:1; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:18px; padding:40px; min-height:70vh; }
+  .drop{ display:flex; }
+  .empty svg{ position:static; display:block; width:120px; height:120px; flex:0 0 auto; color:var(--in); }
+  .empty h2{ font-family:'Bricolage'; font-weight:800; font-size:64px; letter-spacing:-2px; line-height:1; }
+  .empty p{ font-size:26px; font-weight:500; color:var(--second); }
+  body.is-empty .empty{ display:flex; }
+  body.is-empty .key, body.is-empty #stage, body.is-empty .who, body.is-empty h1{ display:none; }
+  body.is-loading .key, body.is-loading #stage, body.is-loading .who, body.is-loading h1{ visibility:hidden; }
+  body.is-loading .empty{ display:none; }
+
+  #stage{ position:relative; flex:1; min-height:max(720px, 66vh); }
+  #svg{ position:absolute; inset:0; width:100%; height:100%; display:block; overflow:visible; }
+  .key{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 28px; padding:26px 40px 0; font-size:21px; }
+  .key .t{ font-weight:700; }
+  .key span{ display:inline-flex; align-items:center; gap:10px; }
+  .key i{ display:inline-block; width:22px; height:22px; border-radius:50%; }
+  .key .hint{ color:var(--second); font-weight:500; }
+
+  .tip{ position:fixed; z-index:9; pointer-events:none; background:#161616; border:2px solid #3a3a3a; border-radius:14px; padding:14px 18px; font-size:20px; line-height:1.4; max-width:380px; opacity:0; transition:opacity .1s; box-shadow:0 16px 44px -12px rgba(0,0,0,.95); }
+  .tip.show{ opacity:1; }
+  .tip b{ display:block; font-family:'Bricolage'; font-weight:800; font-size:26px; letter-spacing:-.4px; margin-bottom:4px; }
+  .tip .big{ font-weight:700; }
+
+  .shade{ position:fixed; inset:0; z-index:20; background:rgba(0,0,0,.72); display:none; align-items:center; justify-content:center; padding:30px; }
+  .shade.open{ display:flex; }
+  .panel{ position:relative; max-height:calc(100vh - 40px); overflow:auto; width:min(1180px, 100%); background:#121212; border:2px solid #333; border-radius:28px; padding:40px 48px 36px; box-shadow:0 40px 120px -30px #000; }
+  .close{ position:absolute; right:24px; top:24px; font:inherit; font-size:22px; font-weight:700; background:var(--text); color:var(--ink); border:0; border-radius:999px; padding:12px 24px; cursor:pointer; }
+  .p-date{ font-family:'Bricolage'; font-weight:800; font-size:60px; letter-spacing:-2px; line-height:1; padding-right:180px; }
+  .p-steps{ display:flex; align-items:baseline; gap:18px; margin-top:20px; flex-wrap:wrap; }
+  .p-steps .n{ font-family:'Bricolage'; font-weight:800; font-size:84px; letter-spacing:-3px; line-height:.95; color:#FF3DAB; font-variant-numeric:tabular-nums; }
+  .p-steps .u{ font-size:30px; font-weight:700; }
+  .p-steps .b{ font-size:24px; font-weight:700; color:var(--second); }
+  .p-h{ font-size:22px; font-weight:700; margin:30px 0 10px; letter-spacing:.5px; text-transform:uppercase; color:var(--second); }
+  .reads{ display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
+  .read .lab{ font-size:24px; font-weight:700; }
+  .read .lab span{ color:var(--second); font-weight:500; }
+  .read .val{ font-family:'Bricolage'; font-weight:800; font-size:92px; letter-spacing:-3px; line-height:1; margin-top:6px; font-variant-numeric:tabular-nums; }
+  .read .val small{ font-family:'Outfit'; font-size:22px; font-weight:700; letter-spacing:0; margin-left:6px; color:var(--second); }
+  .read .st{ display:inline-block; margin-top:8px; font-size:22px; font-weight:700; color:var(--ink); border-radius:10px; padding:4px 14px; }
+  .acts{ display:grid; grid-template-columns:repeat(4,1fr); gap:24px; }
+  .act .lab{ font-size:22px; font-weight:700; }
+  .act .val{ font-family:'Bricolage'; font-weight:800; font-size:52px; letter-spacing:-1.5px; line-height:1.05; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .act .val small{ font-family:'Outfit'; font-size:20px; font-weight:700; letter-spacing:0; margin-left:4px; color:var(--second); }
+  .act .na{ font-size:24px; font-weight:700; color:var(--second); margin-top:16px; }
+  .p-nav{ display:flex; justify-content:space-between; margin-top:30px; }
+  .p-nav button{ font:inherit; font-size:20px; font-weight:700; color:var(--text); background:none; border:2px solid #444; border-radius:999px; padding:10px 22px; cursor:pointer; }
+  .p-nav button:disabled{ opacity:.3; cursor:default; }
+
+  text{ font-family:'Outfit',system-ui,sans-serif; }
+  .halo{ paint-order:stroke; stroke:var(--ink); stroke-width:7px; stroke-linejoin:round; }
+  .day{ cursor:pointer; }
+  .link,.var{ transition:opacity .15s; }
+  .dim{ opacity:.12; }
+
+  /* Entrance is about 1.5s. The graph itself is animated from default.js so the
+     effect can be removed and hover still changes opacity. */
+  @media (prefers-reduced-motion: no-preference) {
+    body.is-ready h1{ animation:rise .58s cubic-bezier(.16,.84,.32,1) both; }
+    body.is-ready .who .n{ animation:rise .58s cubic-bezier(.16,.84,.32,1) .07s both; }
+    body.is-ready .who .r{ animation:rise .5s cubic-bezier(.16,.84,.32,1) .14s both; }
+    body.is-ready .key{ animation:rise .5s cubic-bezier(.16,.84,.32,1) .1s both; }
+    body.is-empty .drop{ animation:rise .7s cubic-bezier(.16,.84,.32,1) both; }
+    body.is-empty .drop svg{ transform-origin:50% 50%; animation:drop-pulse 1.15s ease .38s both; }
+    body.is-empty .empty h2{ animation:rise .7s cubic-bezier(.16,.84,.32,1) .1s both; }
+    body.is-empty .empty p{ animation:rise .65s cubic-bezier(.16,.84,.32,1) .18s both; }
+  }
+  @keyframes rise{
+    from{ opacity:0; transform:translateY(16px); }
+    to{ opacity:1; transform:none; }
+  }
+  @keyframes drop-pulse{
+    0%{ transform:scale(1); }
+    32%{ transform:scale(1.065); }
+    58%{ transform:scale(1); }
+    78%{ transform:scale(1.03); }
+    100%{ transform:scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{ animation:none !important; transition:none !important; }
+  }
+</style>
+</head>
+<body class="is-loading">
+  <div class="head">
+    <h1 id="headline"></h1>
+    <div class="right">
+      <div class="who"><div class="n" id="who"></div><div class="r" id="span"></div></div>
+      <a class="adv" id="advanced-link" href="advanced/">Advanced view →</a>
+    </div>
+  </div>
+
+  <div class="empty" id="empty">
+    <div class="drop">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.2c-3 4.6-6.6 8.3-6.6 12.4a6.6 6.6 0 0 0 13.2 0c0-4.1-3.6-7.8-6.6-12.4z"/></svg>
+    </div>
+    <h2 id="empty-title">No data yet</h2>
+    <p id="empty-copy">Sync from the app to see your analysis.</p>
+  </div>
+
+  <div class="key">
+    <span class="t">Each dot is one day's average glucose:</span>
+    <span><i style="background:var(--in)"></i>In range 70–180</span>
+    <span><i style="background:var(--high)"></i>High over 180</span>
+    <span><i style="background:var(--low)"></i>Low under 70</span>
+  </div>
+  <div id="stage">
+    <svg id="svg" role="img" aria-labelledby="headline"></svg>
+  </div>
+
+  <div class="shade" id="shade"><div class="panel" id="panel"></div></div>
+  <div class="tip" id="tip"></div>
+  <script>
+    (function () {
+      var path = location.pathname;
+      var at = path.indexOf("/graph");
+      var root = at >= 0 ? path.slice(0, at + "/graph".length) : "";
+      var link = document.getElementById("advanced-link");
+      if (link) link.href = root + "/advanced/" + location.search;
+    })();
+  </script>
+  <script type="module" src="default.js"></script>
+</body>
+</html>
