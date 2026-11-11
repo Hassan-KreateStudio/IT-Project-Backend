@@ -148,6 +148,7 @@ func (r *Repository) UpsertBatch(ctx context.Context, patientID string, inputs [
 }
 
 func (r *Repository) ListInRange(ctx context.Context, patientID string, from, to time.Time) ([]*contracts.ActivityRecord, error) {
+	startDay, endDay := daykey.Span(from, to)
 	value, err := r.db.ExecuteRead(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
 		res, err := tx.Run(ctx, `
 			MATCH (p:User {id: $patientId})-[:HAS_DAY]->(d:Day)-[:HAS_STEPS]->(s:Steps)
@@ -159,8 +160,8 @@ func (r *Repository) ListInRange(ctx context.Context, patientID string, from, to
 			ORDER BY d.date
 		`, map[string]any{
 			"patientId": patientID,
-			"from":      daykey.FromSourceAndTime("", from),
-			"to":        daykey.FromSourceAndTime("", to),
+			"from":      startDay,
+			"to":        endDay,
 		})
 		if err != nil {
 			return nil, err

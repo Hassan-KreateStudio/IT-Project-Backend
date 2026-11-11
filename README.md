@@ -50,9 +50,21 @@ python3 src/domains/analysis/tests/run.py
 
 ## Graph explorer
 
-`/graph` and `/graph/data` are scoped to one patient. The data endpoint stays public (no auth) for the single-user demo. Pass `?user=` with that patient's id or email (`userId`, `id`, and `email` are aliases).
+`/graph` and `/graph/data` are scoped to one patient. Pass `?user=` with that patient's id or email (`userId`, `id`, and `email` are aliases).
 
-With no parameter, a database that has one patient uses that patient. If several patient accounts exist but only one of them has day nodes, that patient is used. If more than one patient has days, the request asks for `user` instead of correlating every patient's days together. Emails are not included in the payload.
+Who can open it depends on `GRAPH_EXPLORER`:
+
+| Value | Behaviour |
+|---|---|
+| unset, Neo4j on localhost / `neo4j` | public, so local development stays as it was |
+| unset, remote Neo4j (Aura) | bearer token required, same JWT as GraphQL |
+| `public` | no auth |
+| `auth` | bearer token required even locally |
+| `off` | 404 |
+
+With no `user` parameter, a database that has one patient uses that patient. If several patient accounts exist but only one of them has day nodes, that patient is used. If more than one patient has days, the request asks for `user` instead of correlating every patient's days together. Emails are not included in the payload.
+
+Day hubs and the dashboard use one calendar: the phone's `hk:yyyy-MM-dd` local day, otherwise Africa/Nairobi. A HealthKit day starts at local midnight, which is 21:00 the previous date in UTC, so labelling activity by the UTC date put 8 Nov's steps on 7 Nov while daytime glucose stayed on 8 Nov. The graph correlations pair on that same `Day.date`. `dashboard(offsetMinutes)` still accepts a non-zero viewer offset; zero means Nairobi, not UTC.
 
 ## GraphQL
 
@@ -82,7 +94,7 @@ make render-create
 make render-deploy
 ```
 
-On Render, set a **different** `JWT_SECRET` plus Aura `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `NEO4J_DATABASE=neo4j`, and `REDIS_URL`. `CORS_ALLOWED_ORIGINS` is optional; leave it unset to keep the default allow-list (this service's origin, plus localhost for development). Health check: `/ping`.
+On Render, set a **different** `JWT_SECRET` plus Aura `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `NEO4J_DATABASE=neo4j`, and `REDIS_URL`. `CORS_ALLOWED_ORIGINS` is optional; leave it unset to keep the default allow-list (this service's origin, plus localhost for development). Leave `GRAPH_EXPLORER` unset so `/graph` requires a bearer token against Aura, or set `GRAPH_EXPLORER=public` if the browser tool should stay open. Health check: `/ping`.
 
 The ShanghaiT2DM lookup table is embedded in the API binary during `docker build`. `make render-deploy` does not need a new environment variable or a data file on the Render disk.
 

@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/daykey"
 )
 
 func TestDayIsThreeReadingsAtSlotMidpoints(t *testing.T) {
@@ -25,6 +27,37 @@ func TestDayIsThreeReadingsAtSlotMidpoints(t *testing.T) {
 		}
 		if !containsValue(dailySlots[i].values, reading.Value) {
 			t.Fatalf("slot %s value %.1f is not in the table", dailySlots[i].name, reading.Value)
+		}
+	}
+}
+
+func TestPatientZoneWallClockIsNotStoredAsUTC(t *testing.T) {
+	nairobi := daykey.Location()
+	date := time.Date(2026, 11, 8, 0, 0, 0, 0, nairobi)
+	readings := Day(date, nairobi, rand.New(rand.NewSource(1)))
+	// Migration 006 looks for these UTC seconds-of-day and moves them back
+	// three hours. A correct write must not land on them.
+	mislabelled := []int{5*3600 + 30*60, 13*3600 + 30*60, 19*3600 + 30*60}
+	wall := []int{5, 13, 19}
+	for i, reading := range readings {
+		utc := reading.RecordedAt.UTC()
+		second := utc.Hour()*3600 + utc.Minute()*60 + utc.Second()
+		if second != mislabelled[i]-3*3600 {
+			t.Fatalf("slot %d stored at %s (%d), want UTC second-of-day %d", i, utc.Format(time.RFC3339), second, mislabelled[i]-3*3600)
+		}
+		local := reading.RecordedAt.In(nairobi)
+		if local.Hour() != wall[i] || local.Minute() != 30 || local.Day() != 8 {
+			t.Fatalf("slot %d displays as %s, want %02d:30 on 8 Nov", i, local.Format(time.RFC3339), wall[i])
+		}
+	}
+
+	// The failure mode: passing UTC stores the wall clock as if it were UTC.
+	labelled := Day(date, time.UTC, rand.New(rand.NewSource(1)))
+	for i, reading := range labelled {
+		utc := reading.RecordedAt.UTC()
+		second := utc.Hour()*3600 + utc.Minute()*60 + utc.Second()
+		if second != mislabelled[i] {
+			t.Fatalf("UTC location slot %d at second %d, want %d", i, second, mislabelled[i])
 		}
 	}
 }

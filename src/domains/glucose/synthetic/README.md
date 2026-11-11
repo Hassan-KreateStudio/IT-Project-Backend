@@ -36,7 +36,7 @@ The hours follow the dietary logs in the same workbooks (a non-empty `Dietary in
 - Lunch logs peak at 11:00–11:59 (677). 13:00–14:00 starts two hours later. That hour itself contains 67 dietary logs.
 - Dinner logs peak at 17:00–17:59 (640). 19:00–20:00 starts two hours later. That hour itself contains 101 dietary logs.
 
-The reading is stored at the midpoint of its window, on the activity day, in the location the caller passes. The API uses Africa/Nairobi, so the three timestamps are 05:30, 13:30, and 19:30 East Africa Time.
+The reading is stored at the midpoint of its window, on the activity day, in the location the caller passes. The API uses Africa/Nairobi (UTC+3, no daylight saving), so the three timestamps are 05:30, 13:30, and 19:30 East Africa Time. The offset is a fixed zone in code. The Alpine image has no zoneinfo database, and `time.LoadLocation` was failing and falling back to UTC, which stored those wall times as 05:30Z, 13:30Z, and 19:30Z. A Nairobi phone then showed 08:30, 16:30, and 22:30. The stored instants are 02:30Z, 10:30Z, and 16:30Z.
 
 Rows in the CSV stay in workbook filename order, then timestamp, then source row. Sampling draws an index into that list, so a repeated value is as likely as it was in the hour. The largest after-dinner value, 468.0 mg/dL, is the 19:29 reading on 14 October 2021 in `2021_0_20211013.xls`.
 

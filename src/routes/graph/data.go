@@ -47,10 +47,11 @@ type payload struct {
 	} `json:"meta"`
 }
 
-// Data returns one patient's graph, capped and stripped. The page is public
-// for the single-user demo, but correlations must not mix Day nodes from
-// different people. Pass ?user= with an id or an email to choose; with no
-// parameter the only patient (or the only patient who has days) is used.
+// Data returns one patient's graph, capped and stripped. The route is gated
+// before this runs (local Neo4j is open; a remote database requires a bearer
+// token unless GRAPH_EXPLORER=public). Correlations must not mix Day nodes
+// from different people. Pass ?user= with an id or an email to choose; with
+// no parameter the only patient (or the only patient who has days) is used.
 func Data(client *neo4jdb.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		limit := defaultLimit

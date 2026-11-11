@@ -19,6 +19,26 @@ test("p-value label uses p < 0.05", () => {
   assert.equal(describeP(null).text, "—");
 });
 
+test("same-day pairing uses the local day key, not the UTC date of the reading", () => {
+  const payload = graphOf([
+    ["a", "2026-11-07", 1000, 90],
+    ["a", "2026-11-08", 8083, 110],
+    ["a", "2026-11-09", 2000, 120],
+  ]);
+  // 8 Nov 00:00 in Nairobi is 21:00 UTC on 7 Nov. The reading stays on 8 Nov.
+  const glucose = payload.nodes.find((node) => node.id === "glucose-a-2026-11-08");
+  glucose.props.recordedAt = "2026-11-07T21:00:00Z";
+  const model = prepare(payload);
+  const day = model.days.find((item) => item.date === "2026-11-08");
+  assert.equal(day.metrics.Steps.props.count, 8083);
+  assert.equal(day.glucose, 110);
+  const previous = model.days.find((item) => item.date === "2026-11-07");
+  assert.equal(previous.glucose, 90);
+  const edge = model.sameEdges.find((item) => item.source === "Steps" && item.target === "Glucose");
+  assert.ok(edge);
+  assert.equal(edge.n, 3);
+});
+
 test("correlations stay on one patient", () => {
   const mixed = graphOf([
     ["a", "2026-01-01", 10, 10],

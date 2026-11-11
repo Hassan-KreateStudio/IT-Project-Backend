@@ -26,6 +26,7 @@ import (
 	profilesvc "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/profile/services"
 	gql "github.com/Hassan-KreateStudio/IT-Project-Backend/src/graphql"
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/config"
+	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/daykey"
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/middleware"
 	neo4jdb "github.com/Hassan-KreateStudio/IT-Project-Backend/src/platform/neo4j"
 	redisdb "github.com/Hassan-KreateStudio/IT-Project-Backend/src/platform/redis"
@@ -74,11 +75,7 @@ func main() {
 	}
 
 	if *backfillGlucose {
-		loc, err := time.LoadLocation("Africa/Nairobi")
-		if err != nil {
-			loc = time.UTC
-		}
-		written, err := glucoserepo.New(client).BackfillSynthetic(context.Background(), *backfillSeed, loc, *backfillDryRun)
+		written, err := glucoserepo.New(client).BackfillSynthetic(context.Background(), *backfillSeed, daykey.Location(), *backfillDryRun)
 		if err != nil {
 			log.Fatalf("synthetic glucose: %v", err)
 		}
@@ -118,7 +115,7 @@ func main() {
 
 	app := chi.NewRouter()
 	middleware.Apply(app, middleware.NewCORSPolicy(cfg.CORSAllowedOrigins, cfg.CORSAllowLocalDev))
-	routes.Register(app, client, resolver, auth, cache)
+	routes.Register(app, client, resolver, auth, cache, cfg.GraphExplorer)
 
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,

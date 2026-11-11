@@ -17,6 +17,7 @@ import (
 	glucosecontracts "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/contracts"
 	glucosesvc "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/services"
 	patientsvc "github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/patient/services"
+	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/daykey"
 	apperrors "github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/errors"
 )
 
@@ -43,8 +44,11 @@ func New(
 	}
 }
 
-// OwnDashboard buckets by the viewer's own clock: offsetMinutes is their UTC
-// offset, so a reading at 23:30 lands on the day they call today.
+// OwnDashboard buckets by one civil day. offsetMinutes is the viewer's UTC
+// offset when they send a non-zero value. Zero — omitted or explicit — is
+// the patient zone (Africa/Nairobi), not UTC. Local midnight there is 21:00
+// the previous UTC date, and labelling that instant in UTC files the day's
+// activity under the previous day while daytime glucose stays on the real day.
 func (s *Service) OwnDashboard(ctx context.Context, viewer *authcontracts.User, from, to *time.Time, offsetMinutes int) (*contracts.Dashboard, error) {
 	if viewer == nil {
 		return nil, apperrors.New("unauthorized", http.StatusUnauthorized)
@@ -92,7 +96,10 @@ func (s *Service) build(ctx context.Context, patientID string, fromPtr, toPtr *t
 		return nil, err
 	}
 
-	loc := time.FixedZone("local", offsetMinutes*60)
+	// One civil day for both series: the phone's hk: day when it sent one,
+	// otherwise the patient zone (or the viewer's offset when they sent one).
+	// That is the same key the Day hub and the graph correlations use.
+	loc := daykey.Viewer(offsetMinutes)
 	activityTrends, summary := rollupActivity(activities, loc)
 	glucoseTrends, avgGlucose, glucoseCount := rollupGlucose(readings, loc)
 	summary.AverageGlucose = avgGlucose
@@ -124,7 +131,7 @@ func rollupActivity(records []*activitycontracts.ActivityRecord, loc *time.Locat
 	hrCount := 0
 
 	for _, record := range records {
-		key := record.RecordedAt.In(loc).Format("2006-01-02")
+		key := daykey.Of(record.SourceID, record.RecordedAt, loc)
 		day, ok := buckets[key]
 		if !ok {
 			day = &dayActivity{}
@@ -184,7 +191,7 @@ func rollupGlucose(readings []*glucosecontracts.GlucoseReading, loc *time.Locati
 	total := 0.0
 
 	for _, reading := range readings {
-		key := reading.RecordedAt.In(loc).Format("2006-01-02")
+		key := daykey.Of("", reading.RecordedAt, loc)
 		day, ok := buckets[key]
 		if !ok {
 			day = &dayGlucose{}
