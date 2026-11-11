@@ -51,7 +51,9 @@ func (s *Service) ListInRange(ctx context.Context, patientID string, from, to ti
 //
 // It deliberately does not inherit the request's cancellation: the client can
 // disconnect as soon as the activity records arrive, and the fill would be
-// killed half-way. DefaultSeed only selects which ShanghaiT2DM row to copy.
+// killed half-way. The day's step count chooses the glucose third. DefaultSeed
+// only selects which real reading to copy from that third. A day with no step
+// count is left empty.
 func (s *Service) FillSynthetic(ctx context.Context, patientID string) (int, error) {
 	fillCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Minute)
 	defer cancel()

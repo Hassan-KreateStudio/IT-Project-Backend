@@ -38,8 +38,9 @@ import (
 func main() {
 	migrateOnly := flag.Bool("migrate-only", false, "run Neo4j migrations and exit")
 	backfillGlucose := flag.Bool("backfill-glucose", false, "generate synthetic glucose for days without a reading, then exit")
-	backfillSeed := flag.Int64("seed", glucosesynthetic.DefaultSeed, "seed for choosing which ShanghaiT2DM reading to copy")
+	backfillSeed := flag.Int64("seed", glucosesynthetic.DefaultSeed, "seed for choosing which ShanghaiT2DM reading to copy inside the step-count third")
 	backfillDryRun := flag.Bool("dry-run", false, "with -backfill-glucose, print the values without writing")
+	backfillReplace := flag.Bool("replace-synthetic", false, "with -backfill-glucose, rewrite readings already flagged synthetic using the day's step count")
 	flag.Parse()
 
 	cfg := config.Load()
@@ -75,7 +76,7 @@ func main() {
 	}
 
 	if *backfillGlucose {
-		written, err := glucoserepo.New(client).BackfillSynthetic(context.Background(), *backfillSeed, daykey.Location(), *backfillDryRun)
+		written, err := glucoserepo.New(client).BackfillSynthetic(context.Background(), *backfillSeed, daykey.Location(), *backfillDryRun, *backfillReplace)
 		if err != nil {
 			log.Fatalf("synthetic glucose: %v", err)
 		}
