@@ -2,7 +2,7 @@
 
 Go GraphQL API for graph-based analysis of Apple Watch physical activity data and synthetic glucose input, used to support type 2 diabetes self-monitoring.
 
-Synthetic glucose is not a formula. A day with activity and no reading gets three copied values, flagged `synthetic: true`. Each value is a real ShanghaiT2DM continuous-glucose reading (Zhao et al., *Scientific Data* 10, 35, 2023, https://doi.org/10.1038/s41597-023-01940-7; data file https://doi.org/10.6084/m9.figshare.21600933.v5, CC BY 4.0), drawn at random from the same time of day. The lookup table is compiled into the binary. Clock hours, counts, and how to rebuild the table are in `src/domains/glucose/synthetic/README.md`.
+Synthetic glucose is not a formula and it is not a fitted curve. A day with activity and no reading gets three copied values, flagged `synthetic: true`. Each value is a real ShanghaiT2DM continuous-glucose reading (Zhao et al., *Scientific Data* 10, 35, 2023, https://doi.org/10.1038/s41597-023-01940-7; data file https://doi.org/10.6084/m9.figshare.21600933.v5, CC BY 4.0). The day's step count picks the third of that time-of-day slot to copy: under 5,000 steps copies the high-glucose third, 5,000 through 10,000 the middle third, and over 10,000 the low-glucose third. That link is planted so the analysis has a known pattern to recover. The lookup table is compiled into the binary. Bands, tercile cut-offs, and how to rebuild the table are in `src/domains/glucose/synthetic/README.md`.
 
 ## Stack
 
