@@ -15,6 +15,9 @@ WORKDIR /app
 COPY --from=builder /api /api
 COPY --from=builder /app/migrations ./migrations
 
+# Keep the /graph explorer open for the project demo.
+ENV GRAPH_EXPLORER=public
+
 EXPOSE 8080
 
 CMD ["/api"]
