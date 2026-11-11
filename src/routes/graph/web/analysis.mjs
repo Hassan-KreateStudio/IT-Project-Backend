@@ -137,6 +137,10 @@ export function prepare(payload) {
     || users.find((node) => String(node.props?.role || "").toUpperCase() !== "CAREGIVER")
     || users[0]
     || null;
+  // Day.date is the patient-local calendar day (the phone's hk:yyyy-MM-dd, or
+  // Africa/Nairobi). recordedAt is an instant and is not the day key: Nairobi
+  // midnight is still the previous date in UTC. Same-day and next-day pairs
+  // below line up by this date, so glucose and activity share one day.
   const dayNodes = nodes
     .filter((node) => node.label === "Day")
     .sort((a, b) => String(a.props?.date || "").localeCompare(String(b.props?.date || "")));

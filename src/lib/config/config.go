@@ -1,6 +1,7 @@
 package config
 
 import (
+	"net/url"
 	"os"
 	"strings"
 )
@@ -19,6 +20,7 @@ type Config struct {
 	AuthDebugCodes     bool
 	CORSAllowedOrigins []string
 	CORSAllowLocalDev  bool
+	GraphExplorer      string
 }
 
 // DefaultCORSOrigin is the deployed Render service. It is the allow-list
@@ -45,11 +47,12 @@ func Load() Config {
 
 	corsRaw, corsSet := os.LookupEnv("CORS_ALLOWED_ORIGINS")
 	corsOrigins, corsLocal := ResolveCORS(corsRaw, corsSet)
+	neo4jURI := strings.TrimSpace(os.Getenv("NEO4J_URI"))
 
 	return Config{
 		Port:               port,
 		JWTSecret:          strings.TrimSpace(os.Getenv("JWT_SECRET")),
-		Neo4jURI:           strings.TrimSpace(os.Getenv("NEO4J_URI")),
+		Neo4jURI:           neo4jURI,
 		Neo4jUser:          envOr("NEO4J_USER", "neo4j"),
 		Neo4jPassword:      os.Getenv("NEO4J_PASSWORD"),
 		Neo4jDatabase:      database,
@@ -60,6 +63,40 @@ func Load() Config {
 		AuthDebugCodes:     truthy(os.Getenv("AUTH_DEBUG_CODES")),
 		CORSAllowedOrigins: corsOrigins,
 		CORSAllowLocalDev:  corsLocal,
+		GraphExplorer:      ResolveGraphExplorer(os.Getenv("GRAPH_EXPLORER"), neo4jURI),
+	}
+}
+
+// ResolveGraphExplorer decides who can open /graph.
+// public and off are explicit. auth always requires a bearer token.
+// An unset value stays public for a local database, so the developer machine
+// keeps working, and requires a bearer token when Neo4j is remote.
+func ResolveGraphExplorer(raw, neo4jURI string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "public", "1", "true", "on", "open":
+		return "public"
+	case "off", "0", "false", "disabled", "none":
+		return "off"
+	case "auth", "private":
+		return "auth"
+	default:
+		if neo4jIsLocal(neo4jURI) {
+			return "public"
+		}
+		return "auth"
+	}
+}
+
+func neo4jIsLocal(uri string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(uri))
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(parsed.Hostname()) {
+	case "localhost", "127.0.0.1", "::1", "neo4j":
+		return true
+	default:
+		return false
 	}
 }
 

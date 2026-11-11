@@ -17,9 +17,12 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func Register(app *chi.Mux, client *neo4jdb.Client, resolver *gql.Resolver, auth *authservices.Service, cache *redis.Client) {
+func Register(app *chi.Mux, client *neo4jdb.Client, resolver *gql.Resolver, auth *authservices.Service, cache *redis.Client, graphExplorer string) {
 	app.Route("/ping", ping.Register)
 	app.Route("/graph", func(r chi.Router) {
+		r.Use(graph.Protect(graphExplorer, func(req *http.Request) bool {
+			return middleware.Authorized(req, auth, cache)
+		}))
 		graph.Register(r, client)
 	})
 	app.Route("/db", func(r chi.Router) {

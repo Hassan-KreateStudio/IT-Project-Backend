@@ -41,6 +41,23 @@ func WithUser(ctx context.Context, user *contracts.User) context.Context {
 	return context.WithValue(ctx, userContextKey{}, user)
 }
 
+// Authorized reports whether the request carries a bearer token for a real user.
+func Authorized(r *http.Request, auth *services.Service, cache *redis.Client) bool {
+	if r == nil || auth == nil {
+		return false
+	}
+	header := r.Header.Get("Authorization")
+	if !strings.HasPrefix(header, "Bearer ") {
+		return false
+	}
+	token := strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
+	if token == "" {
+		return false
+	}
+	user, _, err := resolveBearerUser(r.Context(), auth, cache, token)
+	return err == nil && user != nil
+}
+
 func OptionalAuth(auth *services.Service, cache *redis.Client) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

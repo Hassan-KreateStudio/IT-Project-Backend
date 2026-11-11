@@ -9,6 +9,7 @@ import (
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/contracts"
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/repository"
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/synthetic"
+	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/daykey"
 	apperrors "github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/errors"
 )
 
@@ -52,11 +53,7 @@ func (s *Service) ListInRange(ctx context.Context, patientID string, from, to ti
 // disconnect as soon as the activity records arrive, and the fill would be
 // killed half-way. DefaultSeed only selects which ShanghaiT2DM row to copy.
 func (s *Service) FillSynthetic(ctx context.Context, patientID string) (int, error) {
-	loc, err := time.LoadLocation("Africa/Nairobi")
-	if err != nil {
-		loc = time.UTC
-	}
 	fillCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Minute)
 	defer cancel()
-	return s.repo.FillPatient(fillCtx, patientID, synthetic.DefaultSeed, loc)
+	return s.repo.FillPatient(fillCtx, patientID, synthetic.DefaultSeed, daykey.Location())
 }
