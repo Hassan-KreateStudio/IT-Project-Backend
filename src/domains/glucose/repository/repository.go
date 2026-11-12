@@ -6,6 +6,7 @@ import (
 
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/contracts"
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/daykey"
+	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/daynext"
 	neo4jdb "github.com/Hassan-KreateStudio/IT-Project-Backend/src/platform/neo4j"
 
 	"github.com/google/uuid"
@@ -59,6 +60,9 @@ func (r *Repository) Create(ctx context.Context, patientID string, value float64
 	}
 	node, err := neo4jdb.AsNode(result)
 	if err != nil {
+		return nil, err
+	}
+	if err := daynext.RelinkPatient(ctx, r.db, patientID); err != nil {
 		return nil, err
 	}
 	return readingFromNode(node), nil

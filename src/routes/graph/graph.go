@@ -32,12 +32,18 @@ func Register(r chi.Router, client *neo4jdb.Client) {
 		serveAsset(w, web, "default.html")
 	})
 
-	// Canonical advanced URL has a trailing slash so relative script and font
-	// URLs in graph.html resolve under /graph/advanced/.
+	// /advanced/ is the guided tour. The cytoscape explorer stays at
+	// /advanced/explore/ so its hash links keep working.
 	r.Get("/advanced", func(w http.ResponseWriter, req *http.Request) {
 		http.Redirect(w, req, slashURL(req), http.StatusPermanentRedirect)
 	})
 	r.Get("/advanced/", func(w http.ResponseWriter, req *http.Request) {
+		serveAsset(w, web, "tour.html")
+	})
+	r.Get("/advanced/explore", func(w http.ResponseWriter, req *http.Request) {
+		http.Redirect(w, req, slashURL(req), http.StatusPermanentRedirect)
+	})
+	r.Get("/advanced/explore/", func(w http.ResponseWriter, req *http.Request) {
 		serveAsset(w, web, "graph.html")
 	})
 
@@ -45,6 +51,7 @@ func Register(r chi.Router, client *neo4jdb.Client) {
 
 	mountAssets(r, web, "/")
 	mountAssets(r, web, "/advanced/")
+	mountAssets(r, web, "/advanced/explore/")
 }
 
 func slashURL(req *http.Request) string {
@@ -64,6 +71,9 @@ func mountAssets(r chi.Router, web fs.FS, prefix string) {
 	})
 	r.Get(prefix+"default.js", func(w http.ResponseWriter, req *http.Request) {
 		serveAsset(w, web, "default.js")
+	})
+	r.Get(prefix+"tour.js", func(w http.ResponseWriter, req *http.Request) {
+		serveAsset(w, web, "tour.js")
 	})
 	r.Get(prefix+"analysis.mjs", func(w http.ResponseWriter, req *http.Request) {
 		serveAsset(w, web, "analysis.mjs")

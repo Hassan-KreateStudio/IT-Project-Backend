@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Activity and glucose — tour</title>
+<style>
+  @font-face { font-family:'Bricolage'; src:url('fonts/BricolageGrotesque-ExtraBold.otf'); font-weight:800; font-display:swap; }
+  @font-face { font-family:'Outfit'; src:url('fonts/Outfit-Regular.otf'); font-weight:400; font-display:swap; }
+  @font-face { font-family:'Outfit'; src:url('fonts/Outfit-Medium.otf'); font-weight:500; font-display:swap; }
+  @font-face { font-family:'Outfit'; src:url('fonts/Outfit-Bold.otf'); font-weight:700; font-display:swap; }
+
+  
+  
+  
+  
+
+  :root{
+    --ink:#0A0A0A; --night:#161616; --dusk:#2A2A2A;
+    --flare:#FF3DAB; --acid:#D8FF3C; --aurora:#3DFFE7;
+    --text:#F6F4F0; --second:#E2E2E2; --mute:#6E6E6E;
+    --alert:#FF4D3A; --warn:#FFB020; --info:#4D7CFF;
+    --canvas:#F6F4F0; --sed:#9B7BFF; --sleep:#8B9AAB;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; background:var(--ink); color:var(--text); }
+  body{
+    background:
+      radial-gradient(980px 560px at 18% -10%, rgba(255,61,171,.07), transparent 64%),
+      radial-gradient(860px 540px at 92% 0%, rgba(61,255,231,.045), transparent 62%),
+      radial-gradient(700px 500px at 50% 110%, rgba(216,255,60,.03), transparent 60%),
+      var(--ink);
+    font-family:'Outfit',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+    cursor:grab;
+  }
+  body.is-drag{ cursor:grabbing; }
+  body.is-reduced *, body.is-reduced *::before, body.is-reduced *::after{
+    animation:none !important; transition:none !important;
+  }
+  canvas#cy{ position:fixed; inset:0; width:100%; height:100%; display:block; z-index:1; }
+
+  .ghost{
+    position:fixed; z-index:8; top:28px;
+    display:inline-flex; align-items:center; gap:8px;
+    font:700 22px/1 'Outfit',system-ui,sans-serif;
+    color:var(--text); text-decoration:none;
+    background:rgba(10,10,10,.7); border:2px solid rgba(246,244,240,.28);
+    border-radius:999px; padding:11px 22px; cursor:pointer;
+    -webkit-font-smoothing:antialiased;
+  }
+  .ghost:hover{ border-color:var(--text); background:rgba(10,10,10,.88); }
+  .ghost.is-on{ background:var(--text); color:var(--ink); border-color:var(--text); }
+  .tl{ left:32px; }
+  .tr{ right:32px; }
+
+  .headline{
+    position:fixed; z-index:6; left:36px; right:280px; top:88px;
+    pointer-events:none;
+    opacity:1; transition:opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1);
+  }
+  .headline::before{
+    content:""; position:absolute; left:-50px; top:-70px; right:10%; height:170%;
+    background:radial-gradient(ellipse at 10% 0%, rgba(10,10,10,.86) 0%, rgba(10,10,10,.5) 42%, transparent 72%);
+    pointer-events:none; z-index:-1;
+  }
+  .headline.is-off{ opacity:0; transform:translateY(-16px); pointer-events:none; }
+  .headline h1{
+    font-family:'Bricolage',system-ui,sans-serif; font-weight:800;
+    font-size:clamp(42px, 4.4vw, 68px);
+    letter-spacing:-2px; line-height:1.02;
+    max-width:16em;
+    paint-order:stroke; -webkit-text-stroke:8px var(--ink);
+  }
+  .counts{
+    margin-top:14px;
+    font-size:28px; font-weight:500; color:var(--second);
+    letter-spacing:-.3px;
+    paint-order:stroke; -webkit-text-stroke:6px var(--ink);
+  }
+
+  .split{
+    position:fixed; z-index:6; inset:0; pointer-events:none;
+    opacity:0; visibility:hidden;
+  }
+  .split.is-on{ visibility:visible; }
+  .split-band{
+    position:absolute; left:0; right:0; bottom:148px;
+    display:grid; grid-template-columns:1fr 1fr;
+    pointer-events:none;
+  }
+  .arm{
+    text-align:center;
+    padding:0 24px;
+  }
+  .arm .num{
+    font-family:'Bricolage',system-ui,sans-serif; font-weight:800;
+    font-size:clamp(84px, 8.4vw, 124px);
+    letter-spacing:-5px; line-height:.88;
+    font-variant-numeric:tabular-nums;
+    paint-order:stroke; -webkit-text-stroke:10px var(--ink);
+  }
+  .arm .num small{
+    font-family:'Outfit',system-ui,sans-serif; font-size:26px; font-weight:700;
+    letter-spacing:0; margin-left:8px; color:var(--second);
+    -webkit-text-stroke:0; paint-order:normal;
+  }
+  .arm .lab{
+    margin-top:8px;
+    font-size:32px; font-weight:700; color:var(--text);
+    letter-spacing:-.4px;
+    paint-order:stroke; -webkit-text-stroke:6px var(--ink);
+  }
+  .arm.is-low .num{ color:var(--alert); }
+  .arm.is-mid .num{ color:var(--acid); }
+  .arm .proof{
+    margin-top:14px;
+    font-size:clamp(28px, 2.4vw, 36px); font-weight:500; color:var(--second);
+    paint-order:stroke; -webkit-text-stroke:6px var(--ink);
+  }
+  .arm .proof b{ font-weight:700; }
+  .arm.is-low .proof{ color:var(--alert); }
+  .arm.is-mid .proof{ color:var(--acid); }
+  .notes{
+    position:fixed; z-index:9; left:36px; bottom:28px;
+    /* Wide, short block so 2–3 lines sit in the bottom band and clear the tour. */
+    width:calc(100vw - 440px); max-width:52em;
+    pointer-events:none;
+    opacity:0; visibility:hidden;
+    transition:opacity .35s ease, transform .35s ease;
+    transform:translateY(8px);
+  }
+  .notes.is-on{ opacity:1; visibility:visible; transform:none; }
+  .notes::before{
+    content:""; position:absolute; inset:-22px -32px -18px -24px;
+    background:radial-gradient(ellipse at 10% 80%, rgba(10,10,10,.86) 0%, rgba(10,10,10,.4) 48%, transparent 76%);
+    z-index:-1; pointer-events:none;
+  }
+  .notes .kicker{
+    font-size:13px; font-weight:700; letter-spacing:2.2px; text-transform:uppercase;
+    color:var(--mute);
+    paint-order:stroke; -webkit-text-stroke:5px var(--ink);
+    margin-bottom:6px;
+  }
+  .notes .kicker kbd{
+    display:inline-block; margin-left:8px;
+    font:700 11px/1 'Outfit',system-ui,sans-serif;
+    letter-spacing:1px;
+    border:1.5px solid var(--mute); border-radius:4px;
+    padding:2px 6px; color:var(--mute);
+    -webkit-text-stroke:0; paint-order:normal;
+    vertical-align:2px;
+  }
+  .notes p{
+    font-size:19px; font-weight:500; line-height:1.4; color:var(--second);
+    paint-order:stroke; -webkit-text-stroke:6px var(--ink);
+  }
+  /* On the one-day strand the labels sit mid-right; keep notes in the left column. */
+  .notes.is-narrow{ width:auto; max-width:26em; }
+
+  .stage{
+    position:fixed; z-index:6; inset:0; pointer-events:none;
+    opacity:0; visibility:hidden;
+  }
+  .stage.is-on{ visibility:visible; }
+  .stage .q{
+    position:absolute; left:36px; right:280px; top:86px;
+    font-family:'Bricolage',system-ui,sans-serif; font-weight:800;
+    font-size:clamp(42px, 4.4vw, 68px);
+    letter-spacing:-2px; line-height:1.02;
+    paint-order:stroke; -webkit-text-stroke:8px var(--ink);
+    max-width:16em;
+  }
+  .stage .q::before{
+    content:""; position:absolute; left:-50px; top:-70px; right:10%; height:170%;
+    background:radial-gradient(ellipse at 10% 0%, rgba(10,10,10,.86) 0%, rgba(10,10,10,.5) 42%, transparent 72%);
+    pointer-events:none; z-index:-1;
+  }
+  .tm-wrap{
+    position:absolute; left:36px; right:36px; bottom:216px;
+  }
+  .tm-line{
+    font-family:'Bricolage',system-ui,sans-serif; font-weight:800;
+    font-size:clamp(32px, 3.15vw, 44px);
+    letter-spacing:-1.2px; line-height:1.12;
+    white-space:nowrap;
+    paint-order:stroke; -webkit-text-stroke:8px var(--ink);
+  }
+  .tm-num{
+    margin-top:10px;
+    font-size:26px; font-weight:500; color:var(--second);
+    letter-spacing:-.2px;
+    paint-order:stroke; -webkit-text-stroke:6px var(--ink);
+  }
+  .tm-num .tm-after{
+    font-family:'Bricolage',system-ui,sans-serif; font-weight:800;
+    font-size:clamp(48px, 4.8vw, 68px);
+    letter-spacing:-3px; color:var(--acid);
+    -webkit-text-stroke:8px var(--ink);
+    font-variant-numeric:tabular-nums;
+  }
+  .tm-num small{
+    font-family:'Outfit',system-ui,sans-serif; font-size:24px; font-weight:700;
+    margin-left:8px; margin-right:16px; color:var(--second);
+    -webkit-text-stroke:0; paint-order:normal;
+  }
+  .tm-num .tm-vs{
+    font-weight:500; color:var(--second);
+  }
+  .tm-num .tm-streak{
+    font-family:'Bricolage',system-ui,sans-serif; font-weight:800;
+    font-size:clamp(32px, 3vw, 42px);
+    letter-spacing:-1.5px; color:var(--alert);
+    margin:0 8px;
+    -webkit-text-stroke:7px var(--ink);
+    font-variant-numeric:tabular-nums;
+  }
+
+  .ext-counts{
+    position:absolute; left:36px; right:280px; top:178px;
+    font-size:32px; font-weight:500; color:var(--second);
+    letter-spacing:-.3px;
+    paint-order:stroke; -webkit-text-stroke:6px var(--ink);
+  }
+  .ext-counts .from{
+    font-weight:700; color:var(--second);
+  }
+  .ext-counts .arrow{
+    margin:0 10px; font-weight:700; color:var(--mute);
+  }
+  .ext-counts .to{
+    font-family:'Bricolage',system-ui,sans-serif; font-weight:800;
+    font-size:48px; letter-spacing:-1.5px; color:var(--aurora);
+    -webkit-text-stroke:8px var(--ink);
+  }
+  .ext-counts .unit{ margin-left:8px; }
+  .ext-counts .dot{ margin:0 22px; color:var(--mute); }
+  .ext-line{
+    position:absolute; left:36px; right:420px; bottom:150px;
+    font-family:'Bricolage',system-ui,sans-serif; font-weight:800;
+    font-size:clamp(28px, 2.7vw, 38px);
+    letter-spacing:-1px; line-height:1.15;
+    paint-order:stroke; -webkit-text-stroke:8px var(--ink);
+  }
+  .ext-line::before{
+    content:""; position:absolute; left:-40px; top:-30px; right:10%; height:160%;
+    background:radial-gradient(ellipse at 10% 80%, rgba(10,10,10,.8) 0%, rgba(10,10,10,.4) 48%, transparent 76%);
+    z-index:-1; pointer-events:none;
+  }
+  .sleep-tag{
+    position:absolute; right:48px; top:44%;
+    transform:translateY(-50%);
+    text-align:left;
+  }
+  .sleep-tag .st-title{
+    font-family:'Bricolage',system-ui,sans-serif; font-weight:800;
+    font-size:clamp(30px, 2.8vw, 38px);
+    letter-spacing:-1px; line-height:1.08;
+    color:var(--sleep);
+    white-space:nowrap;
+    paint-order:stroke; -webkit-text-stroke:8px var(--ink);
+  }
+  .sleep-tag .st-sub{
+    margin-top:8px;
+    font-size:24px; font-weight:700; color:var(--second);
+    line-height:1.25;
+    white-space:nowrap;
+    paint-order:stroke; -webkit-text-stroke:6px var(--ink);
+  }
+
+  .tour{
+    position:fixed; z-index:8; right:36px; bottom:32px;
+    display:flex; align-items:center; gap:22px;
+  }
+  .tour::before{
+    content:""; position:absolute; inset:-36px -50px -36px -80px;
+    background:radial-gradient(ellipse at 80% 80%, rgba(10,10,10,.88) 0%, transparent 70%);
+    z-index:-1; pointer-events:none;
+  }
+  .step-meta{ text-align:right; }
+  .step-meta .lab{
+    font-size:22px; font-weight:700; color:var(--text);
+    paint-order:stroke; -webkit-text-stroke:5px var(--ink);
+  }
+  .dots{ display:flex; justify-content:flex-end; gap:9px; margin-top:8px; }
+  .dots button{
+    width:16px; height:16px; border-radius:50%;
+    border:2px solid var(--text); background:transparent; padding:0; cursor:pointer;
+  }
+  .dots button.on{ background:var(--text); }
+  .dots button:hover{ background:rgba(246,244,240,.4); }
+  .tour-btns{ display:flex; align-items:center; gap:12px; }
+  .back{
+    font:700 22px/1 'Outfit',system-ui,sans-serif;
+    color:var(--text); background:transparent;
+    border:2px solid rgba(246,244,240,.28);
+    border-radius:999px; padding:16px 24px; cursor:pointer;
+  }
+  .back:hover{ border-color:var(--text); }
+  .back[hidden], .tour.is-free{ display:none; }
+  .next{
+    font:700 26px/1 'Outfit',system-ui,sans-serif;
+    color:var(--ink); background:var(--text);
+    border:0; border-radius:999px; padding:18px 36px; cursor:pointer;
+    white-space:nowrap;
+  }
+  .next:hover{ background:#fff; }
+  .next:disabled{ opacity:.35; cursor:default; }
+
+  .tip{
+    position:fixed; z-index:12; pointer-events:none;
+    background:#161616; border:2px solid #3a3a3a; border-radius:16px;
+    padding:16px 20px; font-size:22px; line-height:1.4; max-width:420px;
+    opacity:0; transition:opacity .12s;
+    box-shadow:0 16px 44px -12px rgba(0,0,0,.95);
+  }
+  .tip.show{ opacity:1; }
+  .tip b{
+    display:block; font-family:'Bricolage'; font-weight:800;
+    font-size:28px; letter-spacing:-.4px; margin-bottom:4px;
+  }
+  .tip .big{ font-weight:700; }
+
+  @media (prefers-reduced-motion: reduce){
+    .headline, .split, .stage, .arm, .take, .col{ animation:none !important; transition:none !important; }
+  }
+
+  .empty{ display:none; position:fixed; inset:0; z-index:6; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:18px; padding:40px; }
+  .empty svg{ width:120px; height:120px; color:var(--acid); }
+  .empty h2{ font-family:'Bricolage',system-ui,sans-serif; font-weight:800; font-size:64px; letter-spacing:-2px; }
+  .empty p{ font-size:26px; font-weight:500; color:var(--second); }
+  body.is-empty .empty{ display:flex; }
+  body.is-empty #cy, body.is-empty .headline, body.is-empty .split, body.is-empty .stage, body.is-empty .tour, body.is-empty .ghost.tr{ display:none; }
+</style>
+</head>
+<body>
+
+  <div class="empty" id="empty">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.2c-3 4.6-6.6 8.3-6.6 12.4a6.6 6.6 0 0 0 13.2 0c0-4.1-3.6-7.8-6.6-12.4z"/></svg>
+    <h2 id="empty-title">No data yet</h2>
+    <p id="empty-copy">Sync from the app to see your analysis.</p>
+  </div>
+
+
+  <canvas id="cy"></canvas>
+
+  <a class="ghost tl" id="default-link" href="../">← Default view</a>
+  <button class="ghost tr" id="free" type="button">Free explore</button>
+
+  <div class="headline" id="headline">
+    <h1 id="h1"></h1>
+    <p class="counts" id="counts"></p>
+  </div>
+
+  <div class="split" id="split">
+    <div class="split-band">
+      <div class="arm is-low" id="arm-low">
+        <div class="num"><span id="num-low">0</span><small>mg/dL</small></div>
+        <div class="lab">Under 5,000 steps</div>
+        <div class="proof"><b id="proof-low"></b> over 180</div>
+      </div>
+      <div class="arm is-mid" id="arm-mid">
+        <div class="num"><span id="num-mid">0</span><small>mg/dL</small></div>
+        <div class="lab">5,000–10,000 steps</div>
+        <div class="proof"><b id="proof-mid"></b> over 180</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage" id="stage-tomorrow">
+    <div class="q">Does today affect tomorrow?</div>
+    <div class="tm-wrap">
+      <div class="tm-line">Each bad day stood alone, and glucose recovered the next day.</div>
+      <div class="tm-num">
+        <span class="tm-after" id="tm-after">0</span><small>mg/dL</small>
+        <span class="tm-vs">the next day, after</span>
+        <span class="tm-streak" id="tm-streak">0</span>
+        <span class="tm-vs">through the streak</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage" id="stage-extend">
+    <div class="q">What if we add another measure?</div>
+    <div class="ext-counts">
+      <span class="from" id="ext-n0"></span><span class="arrow">→</span><span class="to" id="ext-n1"></span><span class="unit">data points</span>
+      <span class="dot">·</span>
+      <span class="from" id="ext-e0"></span><span class="arrow">→</span><span class="to" id="ext-e1"></span><span class="unit">connections</span>
+    </div>
+    <div class="sleep-tag">
+      <div class="st-title">Sleep (example)</div>
+      <div class="st-sub">Example data, not recorded</div>
+    </div>
+    <div class="ext-line">Every new measure becomes one more ring. Every view still works.</div>
+  </div>
+
+  <div class="notes" id="notes" aria-hidden="true">
+    <div class="kicker">Speaker notes <kbd>N</kbd></div>
+    <p id="notes-body"></p>
+  </div>
+
+  <div class="tour" id="tour">
+    <div class="step-meta">
+      <div class="lab" id="step-label">1 of 5</div>
+      <div class="dots" id="dots"></div>
+    </div>
+    <div class="tour-btns">
+      <button class="back" id="back" type="button" hidden>← Back</button>
+      <button class="next" id="next" type="button">Next →</button>
+    </div>
+  </div>
+
+  <div class="tip" id="tip"></div>
+
+
+<script>
+  (function () {
+    var path = location.pathname;
+    var at = path.indexOf("/graph");
+    var root = at >= 0 ? path.slice(0, at + "/graph".length) : "";
+    var link = document.getElementById("default-link");
+    if (link) link.href = root + "/" + location.search;
+  })();
+</script>
+<script type="module" src="tour.js"></script>
+</body>
+</html>

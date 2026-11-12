@@ -67,15 +67,33 @@ func TestGraphPages(t *testing.T) {
 	}
 	advancedHTML := advanced.Body.String()
 	for _, want := range []string{
+		"← Default view",
+		"Free explore",
+		"Each bad day stood alone, and glucose recovered the next day.",
+		"Example data, not recorded",
+		"Speaker notes",
+		`src="tour.js"`,
+		`id="cy"`,
+	} {
+		if !strings.Contains(advancedHTML, want) {
+			t.Errorf("tour page missing %q", want)
+		}
+	}
+
+	explore := get("/graph/advanced/explore/")
+	if explore.Code != http.StatusOK {
+		t.Fatalf("explore status %d", explore.Code)
+	}
+	exploreHTML := explore.Body.String()
+	for _, want := range []string{
 		"Graph Analysis",
-		"Advanced view",
 		"← Default view",
 		`src="cytoscape.min.js"`,
 		`src="app.js"`,
 		`id="cy"`,
 	} {
-		if !strings.Contains(advancedHTML, want) {
-			t.Errorf("advanced page missing %q", want)
+		if !strings.Contains(exploreHTML, want) {
+			t.Errorf("explore page missing %q", want)
 		}
 	}
 

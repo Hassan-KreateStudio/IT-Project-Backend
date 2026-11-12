@@ -20,7 +20,7 @@
         kind = decodeURIComponent((location.hash.replace(/^#/, "").split("&")[0] || "").split("=")[0] || "");
       } catch (e) { return; }
       if (advanced.indexOf(kind) >= 0) {
-        location.replace(root + "/advanced/" + location.search + location.hash);
+        location.replace(root + "/advanced/explore/" + location.search + location.hash);
       }
     }
     forward();
