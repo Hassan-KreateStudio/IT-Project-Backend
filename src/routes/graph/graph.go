@@ -16,7 +16,7 @@ import (
 var assets embed.FS
 
 // Register serves the graph pages at /graph. / is the simplified default
-// view. /advanced/ is the five-stop tour. Pages, scripts, and fonts are
+// view. /advanced/ is the six-stop tour. Pages, scripts, and fonts are
 // embedded, so the Docker image stays self-contained.
 func Register(r chi.Router, client *neo4jdb.Client) {
 	web, err := fs.Sub(assets, "web")
