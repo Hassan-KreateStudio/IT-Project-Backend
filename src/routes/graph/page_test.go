@@ -43,7 +43,6 @@ func TestGraphPages(t *testing.T) {
 		"drop-pulse",
 		`src="default.js"`,
 		"/advanced/",
-		"#day=",
 		"https://doi.org/10.6084/m9.figshare.20444397",
 		"ShanghaiT2DM dataset",
 		`class="qr"`,
@@ -54,6 +53,9 @@ func TestGraphPages(t *testing.T) {
 	}
 	if strings.Contains(defaultHTML, "__DATA__") {
 		t.Fatal("default page must load /graph/data, not inlined JSON")
+	}
+	if strings.Contains(defaultHTML, "/advanced/explore/") || strings.Contains(defaultHTML, "#day=") {
+		t.Fatal("default page still links into the removed explore graph")
 	}
 
 	bare := get("/graph")
@@ -68,7 +70,6 @@ func TestGraphPages(t *testing.T) {
 	advancedHTML := advanced.Body.String()
 	for _, want := range []string{
 		"← Default view",
-		"Free explore",
 		"Each bad day stood alone, and glucose recovered the next day.",
 		"Example data, not recorded",
 		"Speaker notes",
@@ -79,22 +80,20 @@ func TestGraphPages(t *testing.T) {
 			t.Errorf("tour page missing %q", want)
 		}
 	}
+	if strings.Contains(advancedHTML, "Free explore") || strings.Contains(advancedHTML, "/explore/") {
+		t.Fatal("tour still offers Free explore")
+	}
+	tourJS := get("/graph/advanced/tour.js")
+	if tourJS.Code != http.StatusOK {
+		t.Fatalf("tour.js status %d", tourJS.Code)
+	}
+	if !strings.Contains(tourJS.Body.String(), "Back to start") || strings.Contains(tourJS.Body.String(), "Free explore") || strings.Contains(tourJS.Body.String(), "/explore/") {
+		t.Fatal("tour script still points at Free explore")
+	}
 
 	explore := get("/graph/advanced/explore/")
-	if explore.Code != http.StatusOK {
+	if explore.Code != http.StatusNotFound {
 		t.Fatalf("explore status %d", explore.Code)
-	}
-	exploreHTML := explore.Body.String()
-	for _, want := range []string{
-		"Graph Analysis",
-		"← Default view",
-		`src="cytoscape.min.js"`,
-		`src="app.js"`,
-		`id="cy"`,
-	} {
-		if !strings.Contains(exploreHTML, want) {
-			t.Errorf("explore page missing %q", want)
-		}
 	}
 
 	redirect := get("/graph/advanced?user=abc&email=owner@example.com")
@@ -128,27 +127,15 @@ func TestGraphPages(t *testing.T) {
 		}
 	}
 
-	for _, url := range []string{"/graph/analysis.mjs", "/graph/advanced/analysis.mjs"} {
-		page := get(url)
-		if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "export function prepare") {
-			t.Fatalf("%s did not serve analysis.mjs (%d)", url, page.Code)
-		}
+	analysis := get("/graph/analysis.mjs")
+	if analysis.Code != http.StatusOK || !strings.Contains(analysis.Body.String(), "export function prepare") {
+		t.Fatalf("analysis.mjs status %d", analysis.Code)
 	}
-
-	app := get("/graph/advanced/app.js")
-	if app.Code != http.StatusOK {
-		t.Fatalf("advanced app.js status %d", app.Code)
+	if get("/graph/advanced/app.js").Code != http.StatusNotFound {
+		t.Fatal("explore app.js is still served")
 	}
-	appBody := app.Body.String()
-	for _, want := range []string{"#variable=", "#day=", "#edge=", "#metric=", "#reading=", "openFromHash"} {
-		if !strings.Contains(appBody, want) {
-			t.Errorf("advanced app.js missing %q", want)
-		}
-	}
-
-	cy := get("/graph/advanced/cytoscape.min.js")
-	if cy.Code != http.StatusOK || cy.Body.Len() < 1000 {
-		t.Fatalf("cytoscape under advanced: %d len %d", cy.Code, cy.Body.Len())
+	if get("/graph/advanced/cytoscape.min.js").Code != http.StatusNotFound {
+		t.Fatal("cytoscape is still served")
 	}
 
 	font := get("/graph/fonts/Outfit-Regular.otf")

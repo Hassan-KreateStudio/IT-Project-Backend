@@ -15,10 +15,6 @@ function dataURL() {
   return url.pathname + url.search;
 }
 
-function exploreURL() {
-  return graphRoot() + "/advanced/explore/" + location.search;
-}
-
 async function loadGraph() {
   const response = await fetch(dataURL());
   const body = await response.json().catch(() => null);
@@ -890,7 +886,6 @@ function durationFor(from, to){
     "1-2": 2200, "2-1": 1900,
     "1-4": 2000, "4-1": 1800,
     "1b-4": 2100, "4-1b": 1900,
-    "4-free": 1400, "2-free": 1200, "free-0": 900,
   };
   return map[key] ?? 1400;
 }
@@ -898,8 +893,8 @@ function durationFor(from, to){
 function delayFor(n, from, to){
   const ang = (n.t != null ? n.t / TAU : (n.day && n.day.i != null ? n.day.i / days.length : 0.2));
   const role = n.day ? roleOf(n.day) : null;
-  const goingSplit = (from==="0" || from==="free" || from==="2" || from==="4") && to==="1";
-  const leavingSplit = from==="1" && (to==="0" || to==="free");
+  const goingSplit = (from==="0" || from==="2" || from==="4") && to==="1";
+  const leavingSplit = from==="1" && to==="0";
   const toDay = to==="1b";
   const fromDay = from==="1b";
   const spanDays = Math.max(1, days.length - 1);
@@ -1209,7 +1204,7 @@ function drawEdge(sa, sb, color, alpha, width, frac){
 function breathe(n){
   if (reduceMotion() || frozen) return 1;
   const s = trans ? (trans.t > 0.5 ? trans.to : trans.from) : stop;
-  if (s !== "0" && s !== "free") {
+  if (s !== "0") {
     if (n.kind==="aggregate" || (n.day===nov && (stop==="1"||stop==="1b") && n.kind==="day")){
       return 1 + 0.045 * Math.sin(now / 620 + (n.band==="mid"?Math.PI:0));
     }
@@ -1239,7 +1234,7 @@ function drawNode(n, vis, ent){
   const a = vis.a * (n.kind==="aggregate" || n.kind==="intensity" ? 1 : Math.min(1, 0.3 + ent*0.9));
   if (a < 0.01) return;
   let x = vis.x, y = vis.y;
-  if (entrance < 1 && !trans && (stop==="0" || stop==="free") && n.kind!=="aggregate" && n.kind!=="intensity" && n.kind!=="sleep"){
+  if (entrance < 1 && !trans && stop==="0" && n.kind!=="aggregate" && n.kind!=="intensity" && n.kind!=="sleep"){
     const e = entranceFor(n, entrance);
     x = vis.x * e; y = vis.y * e;
   }
@@ -1660,7 +1655,7 @@ function updateStageChrome(){
 }
 
 function ambFor(s){
-  if (s==="0" || s==="free") return 1;
+  if (s==="0") return 1;
   if (s==="1") return 0.25;
   if (s==="1b") return 0.15;
   if (s==="2") return 0.28;
@@ -1711,7 +1706,7 @@ function draw(){
   for (const e of edges){
     const pa = visOf(e.a), pb = visOf(e.b);
     let xa = pa.x, ya = pa.y, xb = pb.x, yb = pb.y;
-    if (entrance < 1 && !trans && (stop==="0"||stop==="free")){
+    if (entrance < 1 && !trans && stop==="0"){
       const ea = entranceFor(e.a, ent), eb = entranceFor(e.b, ent);
       xa *= ea; ya *= ea; xb *= eb; yb *= eb;
     }
@@ -1861,7 +1856,7 @@ canvas.addEventListener("wheel", e => {
 /* -------------------------------------------------------------------------- */
 const STEP_INDEX = { "0":0, "1":1, "1b":2, "2":3, "4":4 };
 const ORDER = ["0","1","1b","2","4"];
-const NEXT_LABEL = { "0":"Next →", "1":"See one day →", "1b":"Next →", "2":"Next →", "4":"Free explore →" };
+const NEXT_LABEL = { "0":"Next →", "1":"See one day →", "1b":"Next →", "2":"Next →", "4":"Back to start" };
 
 function applyChrome(chromeT){
   const s = stop;
@@ -1869,7 +1864,6 @@ function applyChrome(chromeT){
   const tour = document.getElementById("tour");
   const back = document.getElementById("back");
   const next = document.getElementById("next");
-  const free = document.getElementById("free");
 
   hl.classList.toggle("is-off", s !== "0");
 
@@ -1878,25 +1872,18 @@ function applyChrome(chromeT){
   updateNotes();
   if (typeof updateStageChrome === "function") updateStageChrome();
 
-  const freeMode = s==="free";
-  tour.classList.toggle("is-free", freeMode);
-  tour.style.display = freeMode ? "none" : "flex";
-  free.classList.toggle("is-on", freeMode);
-  free.textContent = freeMode ? "Restart tour" : "Free explore";
-
-  if (!freeMode){
-    const idx = STEP_INDEX[s] + 1;
-    document.getElementById("step-label").textContent = `${idx} of ${ORDER.length}`;
-    document.getElementById("dots").innerHTML = ORDER.map((id, i) =>
-      `<button type="button" data-dot="${i}" class="${i===idx-1?"on":""}" aria-label="Go to ${i+1} of ${ORDER.length}"></button>`
-    ).join("");
-    document.getElementById("dots").querySelectorAll("button").forEach(b => {
-      b.onclick = () => go(ORDER[+b.dataset.dot]);
-    });
-    back.hidden = s==="0";
-    next.disabled = false;
-    next.textContent = NEXT_LABEL[s] || "Next →";
-  }
+  tour.style.display = "flex";
+  const idx = STEP_INDEX[s] + 1;
+  document.getElementById("step-label").textContent = `${idx} of ${ORDER.length}`;
+  document.getElementById("dots").innerHTML = ORDER.map((id, i) =>
+    `<button type="button" data-dot="${i}" class="${i===idx-1?"on":""}" aria-label="Go to ${i+1} of ${ORDER.length}"></button>`
+  ).join("");
+  document.getElementById("dots").querySelectorAll("button").forEach(b => {
+    b.onclick = () => go(ORDER[+b.dataset.dot]);
+  });
+  back.hidden = s==="0";
+  next.disabled = false;
+  next.textContent = NEXT_LABEL[s] || "Next →";
 }
 
 function go(s, opts={}){
@@ -1906,7 +1893,7 @@ function go(s, opts={}){
 }
 
 document.getElementById("next").onclick = () => {
-  if (stop === "4") { location.href = exploreURL(); return; }
+  if (stop === "4") { go("0"); return; }
   const i = ORDER.indexOf(stop);
   go(ORDER[Math.min(ORDER.length-1, i+1)]);
 };
@@ -1914,13 +1901,11 @@ document.getElementById("back").onclick = () => {
   const i = ORDER.indexOf(stop);
   go(ORDER[Math.max(0, i-1)]);
 };
-document.getElementById("free").onclick = () => { location.href = exploreURL(); };
 
 addEventListener("keydown", e => {
   if (e.key === "n" || e.key === "N"){ toggleNotes(); return; }
   if (e.key === "ArrowRight" || e.key === "Enter") document.getElementById("next").click();
-  if (e.key === "ArrowLeft") document.getElementById("back").click();
-  if (e.key === "Escape") go("free");
+  if (e.key === "ArrowLeft" || e.key === "Escape") document.getElementById("back").click();
 });
 
 /* -------------------------------------------------------------------------- */
@@ -1932,7 +1917,7 @@ function notesText(s){
      The streaks line says "the day after each streak ended" — the last low-step
      day of a streak is still high; it is the following (active) day that
      returns to range (six 3+ streaks, next-day averages all under 180). */
-  if (s === "0" || s === "free"){
+  if (s === "0"){
     return `One patient, ${days.length} days, as one connected model. ${NODE_COUNT.toLocaleString("en-US")} data points, ${EDGE_COUNT.toLocaleString("en-US")} connections. Every day links to its activity and its glucose readings.`;
   }
   if (s === "1"){
@@ -1947,7 +1932,7 @@ function notesText(s){
     return `The longest run of inactive days was ${FOCUS.n} days, ${FOCUS.when}. Each bad day stood alone, and glucose recovered the next day. ${FOCUS.afterWhen} was back in range, ${fmt1(FOCUS.afterAvg)} against ${fmt1(FOCUS.streakAvg)} through the streak. Across all ${STREAKS.n} streaks of three or more, the day after was in range every time, ${fmt1(STREAKS.afterAvg)} on average. No build-up by position: ${pos}. Same day is strong, ${Math.round(STATS.lowAvg)} versus ${Math.round(STATS.midAvg)}; the next day has no link, ${fmt1(LAG.nextFastLow)} versus ${fmt1(LAG.nextFastMid)}, r ${fmtR(LAG.nextRfast)}. The glucose is synthetic and planted per day, so no carry-over is expected.`;
   }
   if (s === "4"){
-    return `What if we add sleep, or meals, or medication? Each new measure is one more ring, ${days.length} more nodes, and every view still works. The sleep ring here is example data, not recorded.`;
+    return `What if we add sleep, or meals, or medication? Each new measure is one more ring, ${days.length} more nodes. The sleep ring here is example data, not recorded.`;
   }
   return "";
 }
@@ -2030,7 +2015,7 @@ function boot(){
 
 addEventListener("resize", () => {
   resize();
-  if (stop !== "free" && camT >= 1 && !dragging && !trans) Object.assign(cam, targetCam(stop));
+  if (camT >= 1 && !dragging && !trans) Object.assign(cam, targetCam(stop));
 });
 
 function useFindings(report) {

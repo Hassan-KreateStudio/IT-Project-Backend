@@ -15,9 +15,9 @@ import (
 //go:embed web
 var assets embed.FS
 
-// Register serves the graph explorer at /graph. / is the simplified default
-// view. /advanced/ is the full relationship graph. Pages, scripts, and fonts
-// are embedded, so the Docker image stays self-contained.
+// Register serves the graph pages at /graph. / is the simplified default
+// view. /advanced/ is the five-stop tour. Pages, scripts, and fonts are
+// embedded, so the Docker image stays self-contained.
 func Register(r chi.Router, client *neo4jdb.Client) {
 	web, err := fs.Sub(assets, "web")
 	if err != nil {
@@ -32,26 +32,33 @@ func Register(r chi.Router, client *neo4jdb.Client) {
 		serveAsset(w, web, "default.html")
 	})
 
-	// /advanced/ is the guided tour. The cytoscape explorer stays at
-	// /advanced/explore/ so its hash links keep working.
 	r.Get("/advanced", func(w http.ResponseWriter, req *http.Request) {
 		http.Redirect(w, req, slashURL(req), http.StatusPermanentRedirect)
 	})
 	r.Get("/advanced/", func(w http.ResponseWriter, req *http.Request) {
 		serveAsset(w, web, "tour.html")
 	})
-	r.Get("/advanced/explore", func(w http.ResponseWriter, req *http.Request) {
-		http.Redirect(w, req, slashURL(req), http.StatusPermanentRedirect)
-	})
-	r.Get("/advanced/explore/", func(w http.ResponseWriter, req *http.Request) {
-		serveAsset(w, web, "graph.html")
-	})
 
 	r.Get("/data", Data(client))
 
-	mountAssets(r, web, "/")
-	mountAssets(r, web, "/advanced/")
-	mountAssets(r, web, "/advanced/explore/")
+	r.Get("/default.js", func(w http.ResponseWriter, req *http.Request) {
+		serveAsset(w, web, "default.js")
+	})
+	r.Get("/analysis.mjs", func(w http.ResponseWriter, req *http.Request) {
+		serveAsset(w, web, "analysis.mjs")
+	})
+	r.Get("/tour.js", func(w http.ResponseWriter, req *http.Request) {
+		serveAsset(w, web, "tour.js")
+	})
+	r.Get("/advanced/tour.js", func(w http.ResponseWriter, req *http.Request) {
+		serveAsset(w, web, "tour.js")
+	})
+	r.Get("/fonts/*", func(w http.ResponseWriter, req *http.Request) {
+		serveFont(w, req, web)
+	})
+	r.Get("/advanced/fonts/*", func(w http.ResponseWriter, req *http.Request) {
+		serveFont(w, req, web)
+	})
 }
 
 func slashURL(req *http.Request) string {
@@ -62,30 +69,13 @@ func slashURL(req *http.Request) string {
 	return target
 }
 
-func mountAssets(r chi.Router, web fs.FS, prefix string) {
-	r.Get(prefix+"cytoscape.min.js", func(w http.ResponseWriter, req *http.Request) {
-		serveAsset(w, web, "cytoscape.min.js")
-	})
-	r.Get(prefix+"app.js", func(w http.ResponseWriter, req *http.Request) {
-		serveAsset(w, web, "app.js")
-	})
-	r.Get(prefix+"default.js", func(w http.ResponseWriter, req *http.Request) {
-		serveAsset(w, web, "default.js")
-	})
-	r.Get(prefix+"tour.js", func(w http.ResponseWriter, req *http.Request) {
-		serveAsset(w, web, "tour.js")
-	})
-	r.Get(prefix+"analysis.mjs", func(w http.ResponseWriter, req *http.Request) {
-		serveAsset(w, web, "analysis.mjs")
-	})
-	r.Get(prefix+"fonts/*", func(w http.ResponseWriter, req *http.Request) {
-		name := strings.TrimPrefix(chi.URLParam(req, "*"), "/")
-		if name == "" || strings.Contains(name, "..") {
-			http.NotFound(w, req)
-			return
-		}
-		serveAsset(w, web, path.Join("fonts", name))
-	})
+func serveFont(w http.ResponseWriter, req *http.Request, web fs.FS) {
+	name := strings.TrimPrefix(chi.URLParam(req, "*"), "/")
+	if name == "" || strings.Contains(name, "..") {
+		http.NotFound(w, req)
+		return
+	}
+	serveAsset(w, web, path.Join("fonts", name))
 }
 
 func serveAsset(w http.ResponseWriter, files fs.FS, name string) {

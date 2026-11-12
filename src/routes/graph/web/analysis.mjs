@@ -1,4 +1,4 @@
-// Derived, whole-window analysis for the graph explorer. Nothing here changes
+// Derived, whole-window analysis for the graph pages. Nothing here changes
 // the stored graph: the variable-to-variable layer is computed at load time
 // from every complete day in the payload.
 

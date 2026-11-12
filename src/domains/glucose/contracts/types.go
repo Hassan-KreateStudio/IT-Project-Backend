@@ -2,7 +2,7 @@ package contracts
 
 import "time"
 
-// Glucose bands shared by alerts, the in-range share, and the graph explorer.
+// Glucose bands shared by alerts, the in-range share, and the graph pages.
 // In range is 70–180 mg/dL inclusive. High is strictly above 180. Low is strictly below 70.
 const (
 	GlucoseLowMgDl  = 70.0

@@ -298,7 +298,7 @@
     border-radius:999px; padding:16px 24px; cursor:pointer;
   }
   .back:hover{ border-color:var(--text); }
-  .back[hidden], .tour.is-free{ display:none; }
+  .back[hidden]{ display:none; }
   .next{
     font:700 26px/1 'Outfit',system-ui,sans-serif;
     color:var(--ink); background:var(--text);
@@ -331,7 +331,7 @@
   .empty h2{ font-family:'Bricolage',system-ui,sans-serif; font-weight:800; font-size:64px; letter-spacing:-2px; }
   .empty p{ font-size:26px; font-weight:500; color:var(--second); }
   body.is-empty .empty{ display:flex; }
-  body.is-empty #cy, body.is-empty .headline, body.is-empty .split, body.is-empty .stage, body.is-empty .tour, body.is-empty .ghost.tr{ display:none; }
+  body.is-empty #cy, body.is-empty .headline, body.is-empty .split, body.is-empty .stage, body.is-empty .tour{ display:none; }
 </style>
 </head>
 <body>
@@ -346,7 +346,6 @@
   <canvas id="cy"></canvas>
 
   <a class="ghost tl" id="default-link" href="../">← Default view</a>
-  <button class="ghost tr" id="free" type="button">Free explore</button>
 
   <div class="headline" id="headline">
     <h1 id="h1"></h1>
