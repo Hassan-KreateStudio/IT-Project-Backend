@@ -68,7 +68,17 @@ func (r *Repository) Upsert(ctx context.Context, patientID string, input contrac
 		if !res.Next(ctx) {
 			return nil, res.Err()
 		}
-		return recordFromValues(res.Record().Values)
+		record, err := recordFromValues(res.Record().Values)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := res.Consume(ctx); err != nil {
+			return nil, err
+		}
+		if err := relinkNext(ctx, tx, patientID); err != nil {
+			return nil, err
+		}
+		return record, nil
 	})
 	if err != nil || value == nil {
 		return nil, err
@@ -138,7 +148,13 @@ func (r *Repository) UpsertBatch(ctx context.Context, patientID string, inputs [
 			}
 			records = append(records, record)
 		}
-		return records, res.Err()
+		if err := res.Err(); err != nil {
+			return nil, err
+		}
+		if err := relinkNext(ctx, tx, patientID); err != nil {
+			return nil, err
+		}
+		return records, nil
 	})
 	if err != nil {
 		return nil, err
@@ -189,6 +205,25 @@ func (r *Repository) ListInRange(ctx context.Context, patientID string, from, to
 
 // recordFromValues flattens a Day and its metric nodes back into the API shape:
 // d, s, m, sd, h — only the Day and Steps are guaranteed by the query.
+func relinkNext(ctx context.Context, tx neo4j.ManagedTransaction, patientID string) error {
+	if _, err := tx.Run(ctx, `
+		MATCH (a:Day {patientId: $patientId})-[r:NEXT]->()
+		DELETE r
+	`, map[string]any{"patientId": patientID}); err != nil {
+		return err
+	}
+	_, err := tx.Run(ctx, `
+		MATCH (:User {id: $patientId, role: 'PATIENT'})-[:HAS_DAY]->(d:Day)
+		WITH d ORDER BY d.date
+		WITH collect(d) AS days
+		UNWIND range(0, size(days) - 2) AS i
+		WITH days[i] AS a, days[i + 1] AS b
+		WHERE a IS NOT NULL AND b IS NOT NULL
+		MERGE (a)-[:NEXT]->(b)
+	`, map[string]any{"patientId": patientID})
+	return err
+}
+
 func recordFromValues(values []any) (*contracts.ActivityRecord, error) {
 	day, err := neo4jdb.AsNode(values[0])
 	if err != nil {

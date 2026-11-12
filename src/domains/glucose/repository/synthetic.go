@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/domains/glucose/synthetic"
+	"github.com/Hassan-KreateStudio/IT-Project-Backend/src/lib/daynext"
 	neo4jdb "github.com/Hassan-KreateStudio/IT-Project-Backend/src/platform/neo4j"
 
 	"github.com/google/uuid"
@@ -107,7 +108,7 @@ func optionalSteps(value any) *int {
 // CreateSynthetic writes one generated reading and flags it, so the dashed
 // values can be told apart from anything the patient actually logged.
 func (r *Repository) CreateSynthetic(ctx context.Context, day SyntheticDay, reading synthetic.DayReading) error {
-	return r.db.RunWrite(ctx, `
+	if err := r.db.RunWrite(ctx, `
 		MATCH (p:User {id: $patientId, role: 'PATIENT'})
 		MERGE (d:Day {patientId: $patientId, date: $day})
 		ON CREATE SET d.id = $dayId
@@ -131,7 +132,10 @@ func (r *Repository) CreateSynthetic(ctx context.Context, day SyntheticDay, read
 		"value":      reading.Value,
 		"recordedAt": reading.RecordedAt,
 		"createdAt":  time.Now().UTC(),
-	})
+	}); err != nil {
+		return err
+	}
+	return daynext.RelinkPatient(ctx, r.db, day.PatientID)
 }
 
 // ReplaceSynthetic deletes that day's synthetic readings and writes the new
@@ -183,7 +187,10 @@ func (r *Repository) ReplaceSynthetic(ctx context.Context, day SyntheticDay, rea
 		})
 		return nil, err
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	return daynext.RelinkPatient(ctx, r.db, day.PatientID)
 }
 
 // SyntheticInsert is one row for the batched writer.
@@ -226,7 +233,7 @@ func (r *Repository) CreateSyntheticBatch(ctx context.Context, patientID string,
 			return err
 		}
 	}
-	return nil
+	return daynext.RelinkPatient(ctx, r.db, patientID)
 }
 
 func (r *Repository) writeSyntheticChunk(ctx context.Context, patientID string, payload []map[string]any) error {

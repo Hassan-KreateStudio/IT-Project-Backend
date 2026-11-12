@@ -50,9 +50,11 @@ python3 src/domains/analysis/tests/run.py
 
 ## Graph explorer
 
-`/graph/` is the default view: steps, active minutes, intensity, sedentary time, and heart rate around glucose, one dot per day. Open a dot for that day's readings. `/graph/advanced/` is the full relationship graph. Links such as `#variable=`, `#day=`, `#edge=`, `#metric=`, and `#reading=` still open there, including when they are appended to `/graph/`. The default view's Advanced view button opens the full graph, and that page links back. Both pages load `/graph/data` and compute same-day correlations in the browser.
+`/graph/` is the default view: steps, active minutes, intensity, sedentary time, and heart rate around glucose, one dot per day. Open a dot for that day's readings. `/graph/advanced/` is a five-stop tour of the same patient. Its Free explore button opens `/graph/advanced/explore/`, the full relationship graph. Links such as `#variable=`, `#day=`, `#edge=`, `#metric=`, and `#reading=` still open that explorer, including when they are appended to `/graph/`. The tour links back to the default view. Press N on the tour, or add `?notes=1`, for the speaker notes. Both pages load `/graph/data`. The tour's figures come from that response; the default view still computes same-day correlations in the browser.
 
-`/graph/`, `/graph/advanced/`, and `/graph/data` are scoped to one patient. Pass `?user=` with that patient's id or email (`userId`, `id`, and `email` are aliases).
+Consecutive `Day` nodes for one patient are joined by a `NEXT` edge. Syncing activity or glucose rebuilds that patient's chain. `migrations/007_day_next.cypher` rebuilds every patient's chain when the API starts, which is how an existing database (including Render) gets the edges without a separate job.
+
+`/graph/`, `/graph/advanced/`, `/graph/advanced/explore/`, and `/graph/data` are scoped to one patient. Pass `?user=` with that patient's id or email (`userId`, `id`, and `email` are aliases).
 
 Who can open it depends on `GRAPH_EXPLORER`:
 

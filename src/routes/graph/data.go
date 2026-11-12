@@ -36,9 +36,10 @@ type edge struct {
 }
 
 type payload struct {
-	Nodes []node `json:"nodes"`
-	Edges []edge `json:"edges"`
-	Meta  struct {
+	Nodes    []node    `json:"nodes"`
+	Edges    []edge    `json:"edges"`
+	Findings *findings `json:"findings,omitempty"`
+	Meta     struct {
 		NodeCount int    `json:"nodeCount"`
 		EdgeCount int    `json:"edgeCount"`
 		Limit     int    `json:"limit"`
@@ -73,7 +74,18 @@ func Data(client *neo4jdb.Client) http.HandlerFunc {
 			if patientID == "" {
 				return emptyPayload(limit), nil
 			}
-			return loadPatient(r.Context(), tx, patientID, limit)
+			out, err := loadPatient(r.Context(), tx, patientID, limit)
+			if err != nil {
+				return nil, err
+			}
+			found, err := loadFindings(r.Context(), tx, patientID)
+			if err != nil {
+				return nil, err
+			}
+			found.NodeCount = out.Meta.NodeCount
+			found.EdgeCount = out.Meta.EdgeCount
+			out.Findings = &found
+			return out, nil
 		})
 		if err != nil {
 			status := http.StatusInternalServerError
