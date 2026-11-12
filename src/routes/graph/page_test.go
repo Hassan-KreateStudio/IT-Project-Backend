@@ -44,6 +44,9 @@ func TestGraphPages(t *testing.T) {
 		`src="default.js"`,
 		"/advanced/",
 		"#day=",
+		"https://doi.org/10.6084/m9.figshare.20444397",
+		"ShanghaiT2DM dataset",
+		`class="qr"`,
 	} {
 		if !strings.Contains(defaultHTML, want) {
 			t.Errorf("default page missing %q", want)

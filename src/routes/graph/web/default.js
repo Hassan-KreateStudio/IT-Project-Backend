@@ -228,11 +228,6 @@ function titleWord(value) {
   return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 }
 
-function direction(variable) {
-  if (variable.strength === "none") return "no clear effect on glucose";
-  return `→ ${variable.link.r < 0 ? "lower" : "higher"} glucose`;
-}
-
 function el(tag, attrs = {}, parent = null) {
   const node = document.createElementNS(SVG_NS, tag);
   for (const [key, value] of Object.entries(attrs)) {
@@ -427,6 +422,36 @@ function bindOnce() {
   });
 }
 
+function fitRing(svg, W, H) {
+  let ry = Math.max(220, H / 2 - 56);
+  let rx = Math.min(W / 2 - 70, ry * 2);
+  const card = svg.ownerDocument?.querySelector(".qr");
+  if (!card) return { rx, ry };
+  const box = svg.getBoundingClientRect();
+  const qr = card.getBoundingClientRect();
+  if (!qr.width || !qr.height) return { rx, ry };
+  const pad = 18;
+  const clear = 12;
+  const hits = () => {
+    for (let step = 0; step < 64; step++) {
+      const angle = (step / 64) * Math.PI * 2;
+      const x = box.left + W / 2 + (rx + pad) * Math.cos(angle);
+      const y = box.top + H / 2 + (ry + pad) * Math.sin(angle);
+      if (x >= qr.left - clear && x <= qr.right + clear && y >= qr.top - clear && y <= qr.bottom + clear) return true;
+    }
+    return false;
+  };
+  let guard = 0;
+  // Shorten the ellipse vertically first so the lower-right arc clears the card
+  // while the labels still fit inside the ring.
+  while (hits() && guard < 48 && ry > 150) {
+    ry *= 0.98;
+    rx = Math.min(rx, ry * 2);
+    guard += 1;
+  }
+  return { rx, ry };
+}
+
 function render() {
   const svg = document.getElementById("svg");
   const view = state.view;
@@ -442,8 +467,10 @@ function render() {
   const H = svg.clientHeight || 760;
   const cx = W / 2;
   const cy = H / 2;
-  const ry = Math.max(220, H / 2 - 56);
-  const rx = Math.min(W / 2 - 70, ry * 2);
+  // Pull the ring in only when it would sit on the corner QR. Wide screens keep the usual ellipse.
+  const fitted = fitRing(svg, W, H);
+  const ry = fitted.ry;
+  const rx = fitted.rx;
   const RC = Math.max(70, Math.min(96, ry * 0.26));
   const RV = 22;
   const LINE = 7;
@@ -592,7 +619,8 @@ function render() {
     el("circle", { cx: item.x, cy: item.y, r: RV, fill: variable.color, stroke: C.ink, "stroke-width": 3 }, group);
     const anchor = item.sign < 0 ? "end" : "start";
     const tx = item.x + item.sign * (RV + 18);
-    const top = item.y - 58;
+    // Name and badge only, centred on the node. Direction stays in the tooltip.
+    const top = item.y - 40;
     const iconSize = 44;
     const gap = 10;
     const name = el("text", {
@@ -608,30 +636,42 @@ function render() {
       name.setAttribute("text-anchor", "end");
       icon(variable.icon, tx - nameWidth - gap - iconSize, top - 9, iconSize, variable.color, group);
     }
+    // Signal bars: 3 strong, 2 moderate, 1 weak. Heights 8, 14, 20 sit on the text baseline.
     const word = variable.strength === "none" ? "NO LINK" : variable.strength.toUpperCase();
+    const level = { strong: 3, moderate: 2, weak: 1, none: 0 }[variable.strength];
+    const style = level === 3
+      ? { bg: C.text, border: C.text, fg: C.ink, on: C.ink, off: "rgba(10,10,10,.25)" }
+      : level === 2
+        ? { bg: "transparent", border: C.text, fg: C.text, on: C.text, off: "rgba(246,244,240,.25)" }
+        : { bg: "transparent", border: "rgba(246,244,240,.28)", fg: "rgba(246,244,240,.55)", on: "rgba(246,244,240,.55)", off: "rgba(246,244,240,.18)" };
+    const barX = 14;
+    const barW = 6;
+    const barGap = 4;
+    const barsWidth = 3 * barW + 2 * barGap;
     const badge = el("text", {
-      y: top + 66, "font-size": 22, "font-weight": 700, fill: C.ink, "letter-spacing": 1.5,
+      y: top + 66, "font-size": 22, "font-weight": 700, fill: style.fg, "letter-spacing": 1.5,
     }, group);
     badge.textContent = word;
-    const badgeWidth = ((badge.getComputedTextLength && badge.getComputedTextLength()) || word.length * 15) + 28;
+    const textWidth = (badge.getComputedTextLength && badge.getComputedTextLength()) || word.length * 15;
+    const badgeWidth = barX + barsWidth + 10 + textWidth + 14;
     const x0 = anchor === "start" ? tx : tx - badgeWidth;
-    const rect = el("rect", { x: x0, y: top + 38, width: badgeWidth, height: 38, rx: 9, fill: C.text }, group);
+    const rect = el("rect", {
+      x: x0 + 1.5, y: top + 39.5, width: badgeWidth - 3, height: 35, rx: 9,
+      fill: style.bg, stroke: style.border, "stroke-width": 3,
+    }, group);
     group.insertBefore(rect, badge);
-    badge.setAttribute("x", x0 + 14);
-    const more = el("text", {
-      x: tx, y: top + 106, "text-anchor": anchor, "font-size": 22, "font-weight": 700, fill: C.text, class: "halo",
-    }, group);
-    more.textContent = variable.more;
-    const effect = el("text", {
-      x: tx, y: top + 134, "text-anchor": anchor, "font-size": 22, "font-weight": 700, fill: C.text, class: "halo",
-    }, group);
-    effect.textContent = direction(variable);
-    if (variable.sparse) {
-      const note = el("text", {
-        x: tx, y: top + 160, "text-anchor": anchor, "font-size": 18, "font-weight": 500, fill: C.second, class: "halo",
+    for (let bar = 0; bar < 3; bar++) {
+      const height = 8 + bar * 6;
+      el("rect", {
+        x: x0 + barX + bar * (barW + barGap),
+        y: top + 66 - height,
+        width: barW,
+        height,
+        rx: 1.5,
+        fill: bar < level ? style.on : style.off,
       }, group);
-      note.textContent = `Recorded on ${variable.days} of ${days.length} days`;
     }
+    badge.setAttribute("x", x0 + barX + barsWidth + 10);
     el("circle", { cx: item.x, cy: item.y, r: RV + 14, fill: "transparent" }, group);
     bindVar(group, variable, days.length);
     if (animate) fade(group, INTRO.varDelay + order * INTRO.varStagger, INTRO.varDuration);
