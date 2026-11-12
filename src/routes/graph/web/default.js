@@ -59,8 +59,8 @@ const GENERIC = "How your activity relates to your glucose";
 
 // Badge words follow the approved view: |r| under 0.1 is no link, so a mild
 // association (intensity is about -0.12) still reads as weak. strengthLabel in
-// analysis.mjs calls |r| under 0.15 negligible and stays on the advanced graph.
-// The r value itself is the same-day Pearson from prepare().
+// analysis.mjs calls |r| under 0.15 negligible. The r value itself is the
+// same-day Pearson from prepare().
 export function linkStrength(r) {
   const value = Math.abs(r);
   if (!Number.isFinite(r) || value < 0.1) return "none";
