@@ -73,6 +73,10 @@ func TestGraphPages(t *testing.T) {
 		"Each bad day stood alone, and glucose recovered the next day.",
 		"Example data, not recorded",
 		"Speaker notes",
+		"Connected data you can question",
+		"Illustration of scale, not real data.",
+		`id="gx"`,
+		`id="stage-concl"`,
 		`src="tour.js"`,
 		`id="cy"`,
 	} {
@@ -87,8 +91,11 @@ func TestGraphPages(t *testing.T) {
 	if tourJS.Code != http.StatusOK {
 		t.Fatalf("tour.js status %d", tourJS.Code)
 	}
-	if !strings.Contains(tourJS.Body.String(), "Back to start") || strings.Contains(tourJS.Body.String(), "Free explore") || strings.Contains(tourJS.Body.String(), "/explore/") {
+	if !strings.Contains(tourJS.Body.String(), `"5":"Back to start"`) || strings.Contains(tourJS.Body.String(), "Free explore") || strings.Contains(tourJS.Body.String(), "/explore/") {
 		t.Fatal("tour script still points at Free explore")
+	}
+	if !strings.Contains(tourJS.Body.String(), `"4":"Next →"`) {
+		t.Fatal("add-a-measure stop should advance to the conclusion")
 	}
 
 	explore := get("/graph/advanced/explore/")

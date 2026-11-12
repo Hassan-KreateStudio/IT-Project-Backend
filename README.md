@@ -50,7 +50,7 @@ python3 src/domains/analysis/tests/run.py
 
 ## Graph pages
 
-`/graph/` is the default view: steps, active minutes, intensity, sedentary time, and heart rate around glucose, one dot per day. Open a dot for that day's readings. `/graph/advanced/` is a five-stop tour of the same patient. The tour links back to the default view. Press N on the tour, or add `?notes=1`, for the speaker notes. Both pages load `/graph/data`. The tour's figures come from that response; the default view still computes same-day correlations in the browser.
+`/graph/` is the default view: steps, active minutes, intensity, sedentary time, and heart rate around glucose, one dot per day. Open a dot for that day's readings. `/graph/advanced/` is a six-stop tour of the same patient. The last stop zooms out to an illustrated network — generated in the browser, not patient data — and links back to the overview. The tour also links back to the default view. Press N on the tour, or add `?notes=1`, for the speaker notes. Both pages load `/graph/data`. The tour's figures come from that response; the default view still computes same-day correlations in the browser.
 
 Consecutive `Day` nodes for one patient are joined by a `NEXT` edge. Syncing activity or glucose rebuilds that patient's chain. `migrations/007_day_next.cypher` rebuilds every patient's chain when the API starts, which is how an existing database (including Render) gets the edges without a separate job.
 
