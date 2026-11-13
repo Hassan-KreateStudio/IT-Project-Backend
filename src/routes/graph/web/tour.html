@@ -377,10 +377,25 @@
     .headline, .split, .stage, .arm, .take, .col{ animation:none !important; transition:none !important; }
   }
 
-  .empty{ display:none; position:fixed; inset:0; z-index:6; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:18px; padding:40px; }
-  .empty svg{ width:120px; height:120px; color:var(--acid); }
-  .empty h2{ font-family:'Bricolage',system-ui,sans-serif; font-weight:800; font-size:64px; letter-spacing:-2px; }
-  .empty p{ font-size:26px; font-weight:500; color:var(--second); }
+  .empty{ display:none; position:fixed; inset:0; z-index:6; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:18px; padding:100px 24px 56px; overflow:auto; }
+  .empty{ justify-content:safe center; }
+  .empty svg{ width:120px; height:120px; color:var(--acid); flex:0 0 auto; }
+  .empty .study{
+    font-family:'Bricolage',system-ui,sans-serif; font-weight:800;
+    font-size:clamp(26px, 3.6vw, 48px); letter-spacing:-1.1px; line-height:1.12;
+    width:min(16em, 100%); max-width:100%; min-width:0;
+    text-wrap:balance; overflow-wrap:break-word;
+  }
+  .empty h2{ font-family:'Bricolage',system-ui,sans-serif; font-weight:800; font-size:clamp(36px, 8vw, 64px); letter-spacing:-2px; line-height:1.05; }
+  .empty p{ font-size:clamp(18px, 3vw, 26px); font-weight:500; color:var(--second); max-width:28em; }
+  button.sound-toggle{
+    width:52px; height:52px; padding:0; justify-content:center; z-index:20;
+  }
+  button.sound-toggle svg{ width:22px; height:22px; display:block; }
+  button.sound-toggle .icon-off{ display:none; }
+  button.sound-toggle.is-muted .icon-on{ display:none; }
+  button.sound-toggle.is-muted .icon-off{ display:block; }
+  button.sound-toggle:focus-visible{ outline:2px solid var(--text); outline-offset:3px; }
   body.is-empty .empty{ display:flex; }
   body.is-empty #cy, body.is-empty .headline, body.is-empty .split, body.is-empty .stage, body.is-empty .tour{ display:none; }
 </style>
@@ -389,6 +404,7 @@
 
   <div class="empty" id="empty">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.2c-3 4.6-6.6 8.3-6.6 12.4a6.6 6.6 0 0 0 13.2 0c0-4.1-3.6-7.8-6.6-12.4z"/></svg>
+    <h1 class="study" id="study-title">Graph Based Analysis of Smart-Wearable Physical Activity Data for Supporting Diabetes Management Among Type 2 Diabetes Patients</h1>
     <h2 id="empty-title">No data yet</h2>
     <p id="empty-copy">Sync from the app to see your analysis.</p>
   </div>
@@ -397,6 +413,10 @@
   <canvas id="cy"></canvas>
 
   <a class="ghost tl" id="default-link" href="../">← Default view</a>
+  <button type="button" class="ghost tr sound-toggle" id="sound-toggle" aria-pressed="false" aria-label="Mute sound" title="Mute sound">
+    <svg class="icon-on" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4 9.2h3.1L11.2 5v14l-4.1-4.2H4z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M15 9.1a3.4 3.4 0 0 1 0 5.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M17.3 6.7a6.6 6.6 0 0 1 0 10.6"/></svg>
+    <svg class="icon-off" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4 9.2h3.1L11.2 5v14l-4.1-4.2H4z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M16 9.2 20.8 14.8M20.8 9.2 16 14.8"/></svg>
+  </button>
 
   <div class="headline" id="headline">
     <h1 id="h1"></h1>
@@ -483,6 +503,15 @@
     var root = at >= 0 ? path.slice(0, at + "/graph".length) : "";
     var link = document.getElementById("default-link");
     if (link) link.href = root + "/" + location.search;
+    try {
+      if (localStorage.getItem("graph-sound") !== "off") return;
+      var button = document.getElementById("sound-toggle");
+      if (!button) return;
+      button.classList.add("is-muted");
+      button.setAttribute("aria-pressed", "true");
+      button.setAttribute("aria-label", "Unmute sound");
+      button.setAttribute("title", "Unmute sound");
+    } catch (e) {}
   })();
 </script>
 <script type="module" src="tour.js"></script>

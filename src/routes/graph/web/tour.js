@@ -1,5 +1,9 @@
-// Guided tour for /graph/advanced/. Numbers come from /graph/data findings.
+// Guided sequence for /graph/advanced/. Numbers come from /graph/data findings.
 // The picture is built from that same response.
+
+import { bindAudio, cueEntrance, cueScreen } from "./sound.mjs";
+
+try { bindAudio(); } catch (e) {}
 
 function graphRoot() {
   const path = location.pathname;
@@ -1064,6 +1068,7 @@ function startTransition(to, opts={}){
     animateCam(targetCam(to), 0);
     return;
   }
+  try { cueScreen(from, to); } catch (e) {}
   trans = {
     from, to,
     start: performance.now(),
@@ -3614,6 +3619,7 @@ function toggleNotes(force){
 function startEntrance(skip){
   if (skip){ entrance = 1; return; }
   entrance = 0; enterStart = performance.now();
+  try { cueEntrance(); } catch (e) {}
 }
 
 function boot(){
