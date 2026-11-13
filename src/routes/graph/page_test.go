@@ -32,6 +32,10 @@ func TestGraphPages(t *testing.T) {
 		"Advanced view →",
 		"No data yet",
 		"Sync from the app to see your analysis.",
+		"Graph Based Analysis of Smart-Wearable Physical Activity Data for Supporting Diabetes Management Among Type 2 Diabetes Patients",
+		`id="study-title"`,
+		`id="sound-toggle"`,
+		`aria-label="Mute sound"`,
 		"Each dot is one day's average glucose:",
 		"In range 70–180",
 		"High over 180",
@@ -53,6 +57,9 @@ func TestGraphPages(t *testing.T) {
 	}
 	if strings.Contains(defaultHTML, "__DATA__") {
 		t.Fatal("default page must load /graph/data, not inlined JSON")
+	}
+	if titleAt, messageAt := strings.Index(defaultHTML, `id="study-title"`), strings.Index(defaultHTML, "No data yet"); titleAt < 0 || messageAt < 0 || titleAt > messageAt {
+		t.Fatal("study title should render above the no-data message")
 	}
 	if strings.Contains(defaultHTML, "/advanced/explore/") || strings.Contains(defaultHTML, "#day=") {
 		t.Fatal("default page still links into the removed explore graph")
@@ -79,6 +86,10 @@ func TestGraphPages(t *testing.T) {
 		`id="stage-concl"`,
 		`src="tour.js"`,
 		`id="cy"`,
+		"Graph Based Analysis of Smart-Wearable Physical Activity Data for Supporting Diabetes Management Among Type 2 Diabetes Patients",
+		`id="study-title"`,
+		`id="sound-toggle"`,
+		`aria-label="Mute sound"`,
 	} {
 		if !strings.Contains(advancedHTML, want) {
 			t.Errorf("tour page missing %q", want)
@@ -86,6 +97,9 @@ func TestGraphPages(t *testing.T) {
 	}
 	if strings.Contains(advancedHTML, "Free explore") || strings.Contains(advancedHTML, "/explore/") {
 		t.Fatal("tour still offers Free explore")
+	}
+	if titleAt, messageAt := strings.Index(advancedHTML, `id="study-title"`), strings.Index(advancedHTML, "No data yet"); titleAt < 0 || messageAt < 0 || titleAt > messageAt {
+		t.Fatal("advanced study title should render above the no-data message")
 	}
 	tourJS := get("/graph/advanced/tour.js")
 	if tourJS.Code != http.StatusOK {
@@ -96,6 +110,21 @@ func TestGraphPages(t *testing.T) {
 	}
 	if !strings.Contains(tourJS.Body.String(), `"4":"Next →"`) {
 		t.Fatal("add-a-measure stop should advance to the conclusion")
+	}
+	if !strings.Contains(tourJS.Body.String(), "cueScreen") {
+		t.Fatal("advanced script should play a cue on screen changes")
+	}
+	for _, url := range []string{"/graph/sound.mjs", "/graph/advanced/sound.mjs"} {
+		sound := get(url)
+		if sound.Code != http.StatusOK {
+			t.Fatalf("%s status %d", url, sound.Code)
+		}
+		script := sound.Body.String()
+		for _, want := range []string{"AudioContext", "graph-sound", "localStorage", "cueScreen"} {
+			if !strings.Contains(script, want) {
+				t.Errorf("%s missing %q", url, want)
+			}
+		}
 	}
 
 	explore := get("/graph/advanced/explore/")
@@ -128,6 +157,7 @@ func TestGraphPages(t *testing.T) {
 		"Active minutes",
 		"Heart rate",
 		"Glucose",
+		"cueIntro",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("default.js missing %q", want)

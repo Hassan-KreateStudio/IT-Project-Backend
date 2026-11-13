@@ -2,6 +2,7 @@
 // The picture — labels, colours, day panel — follows the approved design.
 
 import { bandOf, prepare } from "./analysis.mjs";
+import { bindAudio, cueEmpty, cueIntro } from "./sound.mjs";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -459,6 +460,9 @@ function render() {
   const animate = introPending;
   introPending = false;
   introUntil = animate ? performance.now() + 1650 : 0;
+  if (animate) {
+    try { cueIntro(); } catch (e) {}
+  }
   svg.textContent = "";
 
   const days = view.days;
@@ -683,6 +687,9 @@ function reveal(view) {
   document.body.classList.remove("is-loading");
   if (!view.hasData) {
     document.body.classList.add("is-empty");
+    if (!reducedMotion) {
+      try { cueEmpty(); } catch (e) {}
+    }
     return;
   }
   document.getElementById("who").textContent = view.name;
@@ -734,4 +741,7 @@ async function boot() {
   }
 }
 
-if (typeof document !== "undefined" && document.getElementById("stage")) boot();
+if (typeof document !== "undefined") {
+  try { bindAudio(); } catch (e) {}
+  if (document.getElementById("stage")) boot();
+}
