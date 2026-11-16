@@ -47,6 +47,12 @@ func Register(r chi.Router, client *neo4jdb.Client) {
 	r.Get("/analysis.mjs", func(w http.ResponseWriter, req *http.Request) {
 		serveAsset(w, web, "analysis.mjs")
 	})
+	r.Get("/sound.mjs", func(w http.ResponseWriter, req *http.Request) {
+		serveAsset(w, web, "sound.mjs")
+	})
+	r.Get("/advanced/sound.mjs", func(w http.ResponseWriter, req *http.Request) {
+		serveAsset(w, web, "sound.mjs")
+	})
 	r.Get("/tour.js", func(w http.ResponseWriter, req *http.Request) {
 		serveAsset(w, web, "tour.js")
 	})
