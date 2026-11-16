@@ -97,6 +97,25 @@ func TestGraphPages(t *testing.T) {
 	if !strings.Contains(tourJS.Body.String(), `"4":"Next →"`) {
 		t.Fatal("add-a-measure stop should advance to the conclusion")
 	}
+	if !strings.Contains(tourJS.Body.String(), `playGraphSound("tour-move"`) || !strings.Contains(tourJS.Body.String(), `playGraphSound("tour-enter")`) {
+		t.Fatal("tour script does not play transition sound")
+	}
+
+	for _, url := range []string{"/graph/sound.mjs", "/graph/advanced/sound.mjs"} {
+		sound := get(url)
+		if sound.Code != http.StatusOK {
+			t.Fatalf("%s status %d", url, sound.Code)
+		}
+		if ct := sound.Header().Get("Content-Type"); !strings.Contains(ct, "javascript") {
+			t.Fatalf("%s content type %q", url, ct)
+		}
+		body := sound.Body.String()
+		for _, want := range []string{"AudioContext", "prefers-reduced-motion", "tour-move", "day-open"} {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s missing %q", url, want)
+			}
+		}
+	}
 
 	explore := get("/graph/advanced/explore/")
 	if explore.Code != http.StatusNotFound {
@@ -128,6 +147,10 @@ func TestGraphPages(t *testing.T) {
 		"Active minutes",
 		"Heart rate",
 		"Glucose",
+		`playGraphSound("intro")`,
+		`playGraphSound("day-open")`,
+		`playGraphSound("day-close")`,
+		`playGraphSound("empty")`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("default.js missing %q", want)

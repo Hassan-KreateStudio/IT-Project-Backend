@@ -1,6 +1,10 @@
 // Guided tour for /graph/advanced/. Numbers come from /graph/data findings.
 // The picture is built from that same response.
 
+import { installSounds, playGraphSound } from "./sound.mjs";
+
+installSounds();
+
 function graphRoot() {
   const path = location.pathname;
   const at = path.indexOf("/graph");
@@ -1064,6 +1068,7 @@ function startTransition(to, opts={}){
     animateCam(targetCam(to), 0);
     return;
   }
+  playGraphSound("tour-move", { from, to, duration: dur });
   trans = {
     from, to,
     start: performance.now(),
@@ -3614,6 +3619,7 @@ function toggleNotes(force){
 function startEntrance(skip){
   if (skip){ entrance = 1; return; }
   entrance = 0; enterStart = performance.now();
+  playGraphSound("tour-enter");
 }
 
 function boot(){

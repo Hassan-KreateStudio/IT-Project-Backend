@@ -2,6 +2,7 @@
 // The picture — labels, colours, day panel — follows the approved design.
 
 import { bandOf, prepare } from "./analysis.mjs";
+import { installSounds, playGraphSound } from "./sound.mjs";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -385,20 +386,28 @@ function panelHTML(day, index) {
 function openDay(index) {
   const day = state.view?.days[index];
   if (!day) return;
+  const shade = document.getElementById("shade");
+  const open = shade.classList.contains("open");
+  const previous = state.selected;
   state.selected = index;
   const panel = document.getElementById("panel");
   panel.innerHTML = panelHTML(day, index);
   document.getElementById("close").onclick = closeDay;
   document.getElementById("prev").onclick = () => { if (index > 0) openDay(index - 1); };
   document.getElementById("next").onclick = () => { if (index < state.view.days.length - 1) openDay(index + 1); };
-  document.getElementById("shade").classList.add("open");
+  shade.classList.add("open");
+  if (!open) playGraphSound("day-open");
+  else if (previous !== index) playGraphSound("day-step", { direction: index > previous ? 1 : -1 });
   hideTip();
   render();
 }
 
 function closeDay() {
+  const shade = document.getElementById("shade");
+  const open = shade.classList.contains("open");
   state.selected = null;
-  document.getElementById("shade").classList.remove("open");
+  shade.classList.remove("open");
+  if (open) playGraphSound("day-close");
   render();
 }
 
@@ -683,12 +692,14 @@ function reveal(view) {
   document.body.classList.remove("is-loading");
   if (!view.hasData) {
     document.body.classList.add("is-empty");
+    playGraphSound("empty");
     return;
   }
   document.getElementById("who").textContent = view.name;
   document.getElementById("span").textContent = view.span;
   document.getElementById("headline").textContent = view.headline;
   document.body.classList.add("is-ready");
+  playGraphSound("intro");
   bindOnce();
   const fontsAlreadyLoaded = !document.fonts || document.fonts.status === "loaded";
   render();
@@ -709,6 +720,7 @@ function reveal(view) {
 function fail(error) {
   document.body.classList.remove("is-loading", "is-ready");
   document.body.classList.add("is-empty");
+  playGraphSound("empty");
   const title = document.getElementById("empty-title");
   const copy = document.getElementById("empty-copy");
   if (title) title.textContent = "Could not load";
@@ -734,4 +746,7 @@ async function boot() {
   }
 }
 
-if (typeof document !== "undefined" && document.getElementById("stage")) boot();
+if (typeof document !== "undefined" && document.getElementById("stage")) {
+  installSounds();
+  boot();
+}
